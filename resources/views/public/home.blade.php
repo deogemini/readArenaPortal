@@ -151,6 +151,28 @@
                     <span class="text-[#1B0D05]">BookDuel</span>
                 </div>
                 <p class="mt-4 max-w-sm text-sm leading-7 text-[#5e544d]">A premium digital reading league for verified readers, live discussions, and literary competition.</p>
+                <div class="mt-5 flex items-center gap-3 text-[#1B0D05]">
+                    <a href="#" aria-label="BookDuel on Facebook" class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#F4EBD8] transition hover:bg-[#1B0D05] hover:text-[#F4EBD8]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true">
+                            <path d="M13.5 9H16V6h-2.5C10.8 6 9 7.8 9 10.5V13H7v3h2v6h3v-6h3l.6-3H12v-2.5c0-.8.7-1.5 1.5-1.5z"/>
+                        </svg>
+                    </a>
+                    <a href="#" aria-label="BookDuel on X" class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#F4EBD8] transition hover:bg-[#1B0D05] hover:text-[#F4EBD8]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true">
+                            <path d="M18.9 2H22l-6.8 7.8L23 22h-6.3l-4.9-6.4L6.2 22H3l7.3-8.3L1 2h6.4l4.4 5.9L18.9 2zm-1.1 18h1.8L6.4 3.9H4.5L17.8 20z"/>
+                        </svg>
+                    </a>
+                    <a href="#" aria-label="BookDuel on Instagram" class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#F4EBD8] transition hover:bg-[#1B0D05] hover:text-[#F4EBD8]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true">
+                            <path d="M7.5 2h9A5.5 5.5 0 0 1 22 7.5v9a5.5 5.5 0 0 1-5.5 5.5h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2zm0 2A3.5 3.5 0 0 0 4 7.5v9A3.5 3.5 0 0 0 7.5 20h9a3.5 3.5 0 0 0 3.5-3.5v-9A3.5 3.5 0 0 0 16.5 4h-9zm10.8 1.5a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>
+                        </svg>
+                    </a>
+                    <a href="#" aria-label="BookDuel on YouTube" class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#F4EBD8] transition hover:bg-[#1B0D05] hover:text-[#F4EBD8]">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4 fill-current" aria-hidden="true">
+                            <path d="M23 12s0-3.3-.4-4.9c-.2-.9-.9-1.6-1.8-1.8C19.2 5 12 5 12 5s-7.2 0-8.8.3c-.9.2-1.6.9-1.8 1.8C1 8.7 1 12 1 12s0 3.3.4 4.9c.2.9.9 1.6 1.8 1.8C4.8 19 12 19 12 19s7.2 0 8.8-.3c.9-.2 1.6-.9 1.8-1.8.4-1.6.4-4.9.4-4.9zm-14 3.5v-7l6 3.5-6 3.5z"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
             <div>
                 <h4 class="font-semibold uppercase tracking-[0.2em] text-[#1B0D05]">Quick links</h4>
