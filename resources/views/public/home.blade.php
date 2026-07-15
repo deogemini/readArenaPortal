@@ -18,7 +18,7 @@
                 <a href="#features" class="hover:text-[#1B0D05]">Features</a>
                 <a href="#activity" class="hover:text-[#1B0D05]">Activity</a>
                 <a href="/library" class="hover:text-[#1B0D05]">Library</a>
-                <a href="/admin" class="hover:text-[#1B0D05]">Admin</a>
+                <a href="/pro-arena" class="hover:text-[#1B0D05]">Pro Arena</a>
             </nav>
             <a href="/register" class="rounded-full border border-[#1B0D05] bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA] shadow-sm">Get the App</a>
         </div>

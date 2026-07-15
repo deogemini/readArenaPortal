@@ -15,7 +15,7 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'email_verified_at'];
+    protected $fillable = ['name', 'email', 'password', 'email_verified_at', 'role'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -29,6 +29,16 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return str_contains($this->email, 'admin');
+        return $this->role === 'admin';
+    }
+
+    public function isAuthor(): bool
+    {
+        return $this->role === 'author';
+    }
+
+    public function isReader(): bool
+    {
+        return $this->role === 'reader';
     }
 }

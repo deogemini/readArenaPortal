@@ -7,6 +7,7 @@ use App\Models\Lesson;
 use App\Models\LiveShow;
 use App\Models\Quiz;
 use App\Models\Recommendation;
+use App\Models\SubscriptionPackage;
 use Illuminate\Http\Request;
 
 class PublicController extends Controller
@@ -39,5 +40,12 @@ class PublicController extends Controller
         $book = Book::with(['authors', 'genres'])->where('slug', $slug)->firstOrFail();
 
         return view('public.book', compact('book'));
+    }
+
+    public function proArena()
+    {
+        return view('public.pro-arena', [
+            'packages' => SubscriptionPackage::where('status', 'active')->orderBy('price_tsh')->get(),
+        ]);
     }
 }

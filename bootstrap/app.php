@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
             'reader' => \App\Http\Middleware\EnsureReader::class,
+            'author' => \App\Http\Middleware\EnsureAuthor::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
