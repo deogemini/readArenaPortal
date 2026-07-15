@@ -86,6 +86,19 @@
                 </div>
             </form>
 
+            <div class="my-6 flex items-center gap-3">
+                <div class="h-px flex-1 bg-[#e6dbc8]"></div>
+                <span class="text-xs uppercase tracking-[0.28em] text-[#9a8f82]">or</span>
+                <div class="h-px flex-1 bg-[#e6dbc8]"></div>
+            </div>
+
+            <a href="{{ route('google.redirect') }}" class="inline-flex w-full items-center justify-center gap-3 rounded-full border border-[#d8c9ad] bg-white px-6 py-3 text-sm font-semibold text-[#1B0D05] transition hover:bg-[#F4EBD8]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" aria-hidden="true">
+                    <path fill="#EA4335" d="M12 10.2v3.9h5.4c-.2 1.2-1.4 3.5-5.4 3.5-3.2 0-5.9-2.7-5.9-6s2.7-6 5.9-6c1.8 0 3.1.8 3.8 1.4l2.6-2.5C16.7 3 14.5 2.2 12 2.2 6.9 2.2 2.8 6.4 2.8 11.6S6.9 21 12 21c6.9 0 9.1-4.8 9.1-7.3 0-.5-.1-.9-.1-1.2H12z"/>
+                </svg>
+                Continue with Google
+            </a>
+
             <div class="mt-8 border-t border-[#e6dbc8] pt-6 text-sm text-[#5e544d]">
                 New here?
                 <a href="{{ route('register') }}" class="font-semibold text-[#1B0D05] underline underline-offset-4">Create your ReadArena account</a>
