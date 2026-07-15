@@ -85,7 +85,7 @@ class DatabaseSeeder extends Seeder
         $book2->genres()->sync([$genre2->id, $genre3->id]);
 
         $admin = User::updateOrCreate(
-            ['email' => 'admin@bookduel.test'],
+            ['email' => 'admin@readarena.test'],
             [
                 'name' => 'Aurelia Hart',
                 'password' => bcrypt('password123'),
@@ -95,7 +95,7 @@ class DatabaseSeeder extends Seeder
         );
 
         $reader = User::updateOrCreate(
-            ['email' => 'reader@bookduel.test'],
+            ['email' => 'reader@readarena.test'],
             [
                 'name' => 'Mina Rivera',
                 'password' => bcrypt('password123'),
@@ -105,7 +105,7 @@ class DatabaseSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'author@bookduel.test'],
+            ['email' => 'author@readarena.test'],
             [
                 'name' => 'Noah Kisembo',
                 'password' => bcrypt('password123'),
@@ -162,7 +162,7 @@ class DatabaseSeeder extends Seeder
 
         PlatformSetting::updateOrCreate(
             ['key' => 'platform_name'],
-            ['value' => 'BookDuel', 'type' => 'string']
+            ['value' => 'ReadArena', 'type' => 'string']
         );
         PlatformSetting::updateOrCreate(
             ['key' => 'hero_title'],

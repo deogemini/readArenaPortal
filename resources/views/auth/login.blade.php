@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Sign In | BookDuel</title>
+    <title>Sign In | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
@@ -13,7 +13,7 @@
         <section class="rounded-[32px] border border-[#d8c9ad] bg-[#1B0D05] p-8 text-[#F4EBD8] shadow-xl lg:p-12">
             <a href="/" class="inline-flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
                 <span class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#F4EBD8] text-sm text-[#1B0D05]">BD</span>
-                <span>BookDuel</span>
+                <span>ReadArena</span>
             </a>
             <p class="mt-10 text-sm uppercase tracking-[0.35em] text-[#D8A83E]">Reader league access</p>
             <h1 class="mt-4 font-serif text-5xl leading-tight">Return to the arena with a verified account.</h1>
@@ -40,7 +40,7 @@
             <div class="max-w-md">
                 <p class="text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Sign in</p>
                 <h2 class="mt-3 font-serif text-4xl text-[#1B0D05]">Welcome back</h2>
-                <p class="mt-3 text-sm leading-7 text-[#5e544d]">Use your BookDuel account to continue from where you left off.</p>
+                <p class="mt-3 text-sm leading-7 text-[#5e544d]">Use your ReadArena account to continue from where you left off.</p>
             </div>
 
             @if (session('status'))
@@ -88,7 +88,7 @@
 
             <div class="mt-8 border-t border-[#e6dbc8] pt-6 text-sm text-[#5e544d]">
                 New here?
-                <a href="{{ route('register') }}" class="font-semibold text-[#1B0D05] underline underline-offset-4">Create your BookDuel account</a>
+                <a href="{{ route('register') }}" class="font-semibold text-[#1B0D05] underline underline-offset-4">Create your ReadArena account</a>
             </div>
         </section>
     </div>

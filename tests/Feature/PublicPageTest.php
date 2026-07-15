@@ -8,7 +8,7 @@ test('public landing page loads', function () {
     $response = $this->get('/');
 
     $response->assertStatus(200);
-    $response->assertSee('BookDuel');
+    $response->assertSee('ReadArena');
 });
 
 test('reader dashboard redirects anonymous users', function () {

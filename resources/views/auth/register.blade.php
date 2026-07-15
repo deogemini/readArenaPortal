@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Create Account | BookDuel</title>
+    <title>Create Account | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
@@ -14,7 +14,7 @@
             <div class="max-w-md">
                 <a href="/" class="inline-flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em] text-[#1B0D05]">
                     <span class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#1B0D05] text-sm text-[#F4EBD8]">BD</span>
-                    <span>BookDuel</span>
+                    <span>ReadArena</span>
                 </a>
                 <p class="mt-8 text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Create account</p>
                 <h1 class="mt-3 font-serif text-4xl text-[#1B0D05]">Join the league your way</h1>
