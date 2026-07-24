@@ -14,6 +14,10 @@ class EnsureReader
             return redirect()->route('login');
         }
 
+        if (!Auth::user()->isReader()) {
+            abort(403, 'Reader access only.');
+        }
+
         return $next($request);
     }
 }

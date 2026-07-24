@@ -25,6 +25,12 @@
     </header>
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        @if (session('warning'))
+            <div class="mb-6 rounded-xl border border-[#c17b6f] bg-[#FBF6EA] px-4 py-3 text-sm text-[#7a2e22]">
+                {{ session('warning') }}
+            </div>
+        @endif
+
         <div class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <section class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
                 <div class="flex items-center justify-between">
@@ -45,8 +51,13 @@
                                     <p class="mt-1 text-sm text-[#786A5D]">{{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
                                     <div class="mt-3 flex items-center gap-2 text-sm">
                                         <span class="rounded-full bg-[#1B0D05] px-3 py-1 text-[#FBF6EA]">Quiz ready</span>
-                                        <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel on</span>
+                                        @if($duelsUnlocked)
+                                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel unlocked</span>
+                                        @else
+                                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel locked</span>
+                                        @endif
                                     </div>
+                                    <a href="{{ route('reader.books.show', $book->slug) }}" class="mt-3 inline-flex rounded-full border border-[#d8c9ad] px-3 py-1 text-xs font-semibold text-[#1B0D05]">Read & attempt quiz</a>
                                 </div>
                             </div>
                         </div>
@@ -55,6 +66,23 @@
             </section>
 
             <aside class="space-y-6">
+                <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6">
+                    <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Quiz progress</p>
+                    <div class="mt-4 flex items-end justify-between">
+                        <div>
+                            <p class="text-xs text-[#786A5D]">Total points earned</p>
+                            <p class="font-serif text-4xl text-[#1B0D05]">{{ $totalPoints }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-[#786A5D]">Attempts</p>
+                            <p class="text-lg font-semibold text-[#1B0D05]">{{ $quizAttemptsCount }}</p>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-sm text-[#786A5D]">
+                        Duels unlock after {{ $requiredQuizzesForDuels }} completed quizzes. You have completed {{ $completedQuizzesCount }}.
+                    </p>
+                </div>
+
                 <div class="rounded-[28px] border border-[#d8c9ad] bg-[#1B0D05] p-6 text-[#F4EBD8]">
                     <p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Reading goal</p>
                     <h2 class="mt-2 font-serif text-2xl">{{ $goals->first()?->title ?? 'Annual reading challenge' }}</h2>

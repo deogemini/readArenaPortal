@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -40,5 +41,20 @@ class User extends Authenticatable
     public function isReader(): bool
     {
         return $this->role === 'reader';
+    }
+
+    public function readingGoals(): HasMany
+    {
+        return $this->hasMany(ReadingGoal::class);
+    }
+
+    public function challengerDuels(): HasMany
+    {
+        return $this->hasMany(Duel::class, 'challenger_id');
+    }
+
+    public function opponentDuels(): HasMany
+    {
+        return $this->hasMany(Duel::class, 'opponent_id');
     }
 }

@@ -36,12 +36,33 @@
             </div>
         </header>
 
-        <section class="grid gap-4 px-6 py-8 lg:grid-cols-4 lg:px-8">
+        @if (session('status'))
+            <div class="px-6 pt-6 lg:px-8">
+                <div class="rounded-xl border border-[#3d261b] bg-[#2B170D] px-4 py-3 text-sm text-[#F4EBD8]">
+                    {{ session('status') }}
+                </div>
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="px-6 pt-6 lg:px-8">
+                <div class="rounded-xl border border-[#7a2e22] bg-[#2B170D] px-4 py-3 text-sm text-[#f8d2c8]">
+                    <ul class="list-disc pl-5">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        @endif
+
+        <section class="grid gap-4 px-6 py-8 lg:grid-cols-5 lg:px-8">
             @foreach([
                 ['label'=>'Readers','value'=>$readers],
                 ['label'=>'Published books','value'=>$books],
                 ['label'=>'Quizzes','value'=>$quizzes],
                 ['label'=>'Live shows','value'=>$shows],
+                ['label'=>'Ongoing competitions','value'=>$ongoingCompetitions],
             ] as $card)
                 <div class="rounded-[24px] border border-[#3d261b] bg-[#2B170D] p-5">
                     <p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">{{ $card['label'] }}</p>
@@ -71,6 +92,95 @@
                             <p class="mt-1 text-sm text-[#d8c9ad]">{{ $item['detail'] }}</p>
                         </div>
                     @endforeach
+                </div>
+            </div>
+        </section>
+
+        <section class="px-6 pb-8 lg:px-8">
+            <div class="grid gap-6 lg:grid-cols-[1fr_1fr]">
+                <div class="rounded-[28px] border border-[#3d261b] bg-[#2B170D] p-6">
+                    <h2 class="font-serif text-2xl">Upload Live Competition Video</h2>
+                    <form action="{{ route('admin.competition-videos.store') }}" method="POST" enctype="multipart/form-data" class="mt-5 grid gap-4">
+                        @csrf
+                        <input name="title" value="{{ old('title') }}" placeholder="Video title" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <select name="live_show_id" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                            <option value="">Attach to live show (optional)</option>
+                            @foreach($liveShows as $show)
+                                <option value="{{ $show->id }}" @selected((string) old('live_show_id') === (string) $show->id)>{{ $show->title }}</option>
+                            @endforeach
+                        </select>
+                        <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <select name="status" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                            <option value="published" @selected(old('status', 'published') === 'published')>Published</option>
+                            <option value="draft" @selected(old('status') === 'draft')>Draft</option>
+                        </select>
+                        <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Upload video</button>
+                    </form>
+                </div>
+
+                <div class="rounded-[28px] border border-[#3d261b] bg-[#2B170D] p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h2 class="font-serif text-2xl">Recent Competition Videos</h2>
+                        <form method="GET" action="{{ route('admin.dashboard') }}" class="flex items-center gap-2">
+                            <input
+                                type="text"
+                                name="video_search"
+                                value="{{ $videoSearch }}"
+                                placeholder="Search video title"
+                                class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2 text-sm"
+                            >
+                            <button class="rounded-full bg-[#D8A83E] px-4 py-2 text-xs font-semibold text-[#1B0D05]">Search</button>
+                            @if($videoSearch !== '')
+                                <a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#3d261b] px-3 py-2 text-xs text-[#d8c9ad]">Clear</a>
+                            @endif
+                        </form>
+                    </div>
+                    <div class="mt-4 space-y-3">
+                        @forelse($competitionVideos as $video)
+                            <div class="rounded-[18px] border border-[#3d261b] bg-[#1B0D05] p-4">
+                                <h3 class="font-semibold">{{ $video->title }}</h3>
+                                <p class="mt-1 text-sm text-[#d8c9ad]">
+                                    {{ $video->liveShow?->title ? 'Show: '.$video->liveShow->title : 'Unattached video' }}
+                                </p>
+
+                                <video controls preload="metadata" class="mt-3 w-full rounded-xl border border-[#3d261b] bg-black">
+                                    <source src="{{ asset('storage/'.$video->video_path) }}">
+                                </video>
+
+                                <form action="{{ route('admin.competition-videos.update', $video) }}" method="POST" enctype="multipart/form-data" class="mt-4 grid gap-3">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input name="title" value="{{ $video->title }}" class="rounded-xl border border-[#3d261b] bg-[#2B170D] px-3 py-2 text-sm" required>
+                                    <select name="live_show_id" class="rounded-xl border border-[#3d261b] bg-[#2B170D] px-3 py-2 text-sm">
+                                        <option value="">Unattached</option>
+                                        @foreach($liveShows as $show)
+                                            <option value="{{ $show->id }}" @selected((int) $video->live_show_id === (int) $show->id)>{{ $show->title }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="grid gap-3 sm:grid-cols-2">
+                                        <select name="status" class="rounded-xl border border-[#3d261b] bg-[#2B170D] px-3 py-2 text-sm">
+                                            <option value="published" @selected($video->status === 'published')>Published</option>
+                                            <option value="draft" @selected($video->status === 'draft')>Draft</option>
+                                        </select>
+                                        <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime" class="rounded-xl border border-[#3d261b] bg-[#2B170D] px-3 py-2 text-sm">
+                                    </div>
+                                    <button class="w-fit rounded-full bg-[#D8A83E] px-4 py-2 text-xs font-semibold text-[#1B0D05]">Save changes</button>
+                                </form>
+                                <div class="mt-2">
+                                <form action="{{ route('admin.competition-videos.destroy', $video) }}" method="POST" onsubmit="return confirm('Delete this video?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="rounded-full border border-[#7a2e22] px-4 py-2 text-xs font-semibold text-[#f8d2c8]">Delete</button>
+                                </form>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="rounded-[18px] border border-[#3d261b] bg-[#1B0D05] p-4 text-sm text-[#d8c9ad]">
+                                No competition videos uploaded yet.
+                            </div>
+                        @endforelse
+                    </div>
+                    <div class="mt-4">{{ $competitionVideos->links() }}</div>
                 </div>
             </div>
         </section>
