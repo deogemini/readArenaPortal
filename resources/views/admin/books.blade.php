@@ -56,7 +56,7 @@
 
                 <section class="mb-6 rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-6">
                     <h2 class="font-serif text-2xl">Upload Book</h2>
-                    <form action="{{ route('admin.books.store') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-2">
+                    <form action="{{ route('admin.books.store') }}" method="POST" enctype="multipart/form-data" class="mt-5 grid gap-4 md:grid-cols-2">
                         @csrf
                         <input name="title" value="{{ old('title') }}" placeholder="Book title" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                         <input name="author_name" value="{{ old('author_name') }}" placeholder="Author name" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
@@ -67,6 +67,10 @@
                         <input name="language" value="{{ old('language', 'en') }}" placeholder="Language code (en)" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                         <input name="isbn" value="{{ old('isbn') }}" placeholder="ISBN" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                         <input name="cover_image" value="{{ old('cover_image') }}" placeholder="Cover image URL" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 md:col-span-2">
+                        <div class="md:col-span-2">
+                            <input type="file" name="pdf_file" accept="application/pdf" required class="w-full rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                            <p class="mt-1 text-xs text-[#d8c9ad]">PDF required. Current maximum upload size is 3MB.</p>
+                        </div>
                         <textarea name="description" placeholder="Description" rows="4" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 md:col-span-2">{{ old('description') }}</textarea>
                         <select name="status" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                             <option value="draft" @selected(old('status', 'draft') === 'draft')>Draft</option>
@@ -93,6 +97,7 @@
                             <th class="px-4 py-3">Year</th>
                             <th class="px-4 py-3">Status</th>
                             <th class="px-4 py-3">Featured</th>
+                            <th class="px-4 py-3">PDF</th>
                             <th class="px-4 py-3">Created</th>
                             <th class="px-4 py-3">Actions</th>
                         </tr>
@@ -107,6 +112,7 @@
                                 <td class="px-4 py-3">{{ $book->publication_year ?? '-' }}</td>
                                 <td class="px-4 py-3">{{ ucfirst($book->status ?? 'draft') }}</td>
                                 <td class="px-4 py-3">{{ $book->featured ? 'Yes' : 'No' }}</td>
+                                <td class="px-4 py-3">{{ $book->pdf_path ? 'Uploaded' : 'Missing' }}</td>
                                 <td class="px-4 py-3">{{ optional($book->created_at)->format('Y-m-d') }}</td>
                                 <td class="px-4 py-3">
                                     <form action="{{ route('admin.books.destroy', $book) }}" method="POST" onsubmit="return confirm('Delete this book? This also removes related quizzes and attempts.');">
@@ -118,7 +124,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-4 py-6 text-[#d8c9ad]">No books found.</td>
+                                <td colspan="10" class="px-4 py-6 text-[#d8c9ad]">No books found.</td>
                             </tr>
                         @endforelse
                     </tbody>

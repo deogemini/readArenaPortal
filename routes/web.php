@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified', 'reader'])->group(function () {
     Route::get('/reader/dashboard', [ReaderController::class, 'dashboard'])->name('reader.dashboard');
     Route::get('/reader/library', [ReaderController::class, 'library'])->name('reader.library');
     Route::get('/reader/books/{slug}', [ReaderController::class, 'book'])->name('reader.books.show');
+    Route::post('/reader/books/{slug}/pages', [ReaderController::class, 'trackPagesRead'])->name('reader.books.pages.track');
     Route::post('/reader/quizzes/{quiz}/submit', [ReaderController::class, 'submitQuiz'])->name('reader.quizzes.submit');
     Route::get('/reader/goals', [ReaderController::class, 'goals'])->name('reader.goals');
     Route::post('/reader/goals', [ReaderController::class, 'storeGoal'])->name('reader.goals.store');

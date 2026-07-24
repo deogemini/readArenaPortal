@@ -138,9 +138,16 @@ class AdminController extends Controller
             'language' => ['nullable', 'string', 'max:10'],
             'isbn' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'url'],
+            'pdf_file' => ['required', 'file', 'mimes:pdf', 'max:3072'],
             'status' => ['nullable', 'in:draft,published'],
             'featured' => ['nullable', 'boolean'],
+        ], [
+            'pdf_file.required' => 'PDF is required. If you selected a file, it may be larger than the current 3MB upload limit.',
+            'pdf_file.mimes' => 'Only PDF files are allowed.',
+            'pdf_file.max' => 'PDF must be 3MB or smaller with current server settings.',
         ]);
+
+        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'public');
 
         $publisher = Publisher::firstOrCreate([
             'name' => $payload['publisher_name'] ?? 'Independent Press',
@@ -156,6 +163,7 @@ class AdminController extends Controller
             'language' => $payload['language'] ?? 'en',
             'isbn' => $payload['isbn'] ?? null,
             'cover_image' => $payload['cover_image'] ?? null,
+            'pdf_path' => $pdfPath,
             'featured' => (bool) ($payload['featured'] ?? false),
             'status' => $payload['status'] ?? 'draft',
         ]);
@@ -174,6 +182,10 @@ class AdminController extends Controller
 
     public function destroyBook(Book $book): RedirectResponse
     {
+        if ($book->pdf_path && Storage::disk('public')->exists($book->pdf_path)) {
+            Storage::disk('public')->delete($book->pdf_path);
+        }
+
         $book->delete();
 
         return redirect()->route('admin.books')->with('status', 'Book deleted successfully.');

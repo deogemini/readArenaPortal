@@ -17,6 +17,7 @@ class Book extends Model
         'language',
         'isbn',
         'cover_image',
+        'pdf_path',
         'featured',
         'status',
     ];

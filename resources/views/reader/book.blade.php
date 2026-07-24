@@ -7,10 +7,25 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
-<div class="min-h-screen">
+<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
-        <div class="mx-auto max-w-7xl px-6 py-4 lg:px-8">
-            <a href="/reader/library" class="font-serif text-2xl text-[#1B0D05]">Reader book</a>
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+            <div>
+                <p class="text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Reader lounge</p>
+                <h1 class="font-serif text-2xl text-[#1B0D05]">Welcome back, {{ auth()->user()->name }}</h1>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <a href="{{ route('reader.dashboard') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Dashboard</a>
+                <a href="{{ route('reader.library') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Library</a>
+                <a href="{{ route('reader.goals') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Goals</a>
+                <a href="{{ route('reader.lessons') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Lessons</a>
+                <a href="{{ route('reader.shows') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Shows</a>
+                <a href="{{ route('reader.duels') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Duels</a>
+                <a href="/logout" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
+                <form id="logout-form" action="/logout" method="POST" class="hidden">
+                    @csrf
+                </form>
+            </div>
         </div>
     </header>
     <main class="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -46,6 +61,55 @@
                 </div>
             </div>
         </div>
+
+        <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
+            <h2 class="font-serif text-3xl text-[#1B0D05]">Read Book</h2>
+
+            @if ($book->pdf_path)
+                <p class="mt-2 text-sm text-[#786A5D]">Read directly in the platform using the embedded PDF viewer.</p>
+                <div class="mt-4 overflow-hidden rounded-[18px] border border-[#d8c9ad]">
+                    <iframe
+                        src="{{ asset('storage/'.$book->pdf_path) }}"
+                        class="h-[70vh] w-full bg-white"
+                        title="{{ $book->title }} PDF"
+                    ></iframe>
+                </div>
+            @else
+                <div class="mt-4 rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4 text-sm text-[#5e544d]">
+                    PDF not uploaded for this book yet.
+                </div>
+            @endif
+        </section>
+
+        <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
+            <h2 class="font-serif text-3xl text-[#1B0D05]">Track Pages Read</h2>
+            <p class="mt-2 text-sm text-[#786A5D]">Log your reading progress for this specific book and achieve your pages goal.</p>
+
+            <form action="{{ route('reader.books.pages.track', $book->slug) }}" method="POST" class="mt-4 flex flex-wrap items-end gap-3">
+                @csrf
+                <div>
+                    <label for="pages_read" class="mb-1 block text-xs uppercase tracking-[0.2em] text-[#786A5D]">Pages read</label>
+                    <input id="pages_read" type="number" name="pages_read" min="1" placeholder="10" class="w-36 rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2" required>
+                </div>
+                <button class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Track progress</button>
+            </form>
+
+            <div class="mt-5 space-y-3">
+                @forelse($pageGoals as $goal)
+                    <div class="rounded-[16px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="font-semibold text-[#1B0D05]">{{ $goal->title }}</p>
+                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs uppercase">{{ $goal->status }}</span>
+                        </div>
+                        <p class="mt-1 text-sm text-[#5e544d]">Progress: {{ $goal->current_value }} / {{ $goal->target_value }} pages</p>
+                    </div>
+                @empty
+                    <div class="rounded-[16px] border border-[#d8c9ad] bg-[#F4EBD8] p-4 text-sm text-[#5e544d]">
+                        No pages goal for this book yet. <a href="{{ route('reader.goals') }}" class="font-semibold text-[#1B0D05] underline">Create one in Goals</a>.
+                    </div>
+                @endforelse
+            </div>
+        </section>
 
         <section class="mt-8 space-y-6">
             <h2 class="font-serif text-3xl text-[#1B0D05]">Book Quiz</h2>

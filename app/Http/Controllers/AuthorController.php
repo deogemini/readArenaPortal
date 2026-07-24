@@ -37,7 +37,14 @@ class AuthorController extends Controller
             'publication_year' => ['nullable', 'integer', 'min:1400', 'max:2100'],
             'page_count' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'url'],
+            'pdf_file' => ['required', 'file', 'mimes:pdf', 'max:3072'],
+        ], [
+            'pdf_file.required' => 'PDF is required. If you selected a file, it may be larger than the current 3MB upload limit.',
+            'pdf_file.mimes' => 'Only PDF files are allowed.',
+            'pdf_file.max' => 'PDF must be 3MB or smaller with current server settings.',
         ]);
+
+        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'public');
 
         $publisher = Publisher::firstOrCreate(['name' => 'Independent Press']);
         $book = Book::create([
@@ -50,6 +57,7 @@ class AuthorController extends Controller
             'language' => 'en',
             'status' => 'draft',
             'cover_image' => $payload['cover_image'] ?? null,
+            'pdf_path' => $pdfPath,
         ]);
 
         $author = Author::firstOrCreate(['name' => auth()->user()->name]);

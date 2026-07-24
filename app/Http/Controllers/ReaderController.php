@@ -64,10 +64,64 @@ class ReaderController extends Controller
             ];
         });
 
+        $pageGoals = ReadingGoal::query()
+            ->where('user_id', $readerId)
+            ->where('goal_type', 'pages')
+            ->where('book_id', $book->id)
+            ->latest()
+            ->get();
+
         return view('reader.book', [
             'book' => $book,
             'quizStats' => $quizStats,
+            'pageGoals' => $pageGoals,
         ]);
+    }
+
+    public function trackPagesRead(Request $request, string $slug): RedirectResponse
+    {
+        $book = Book::where('slug', $slug)->firstOrFail();
+
+        $payload = $request->validate([
+            'pages_read' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $pagesRead = (int) $payload['pages_read'];
+        $now = now()->toDateString();
+
+        $goals = ReadingGoal::query()
+            ->where('user_id', auth()->id())
+            ->where('goal_type', 'pages')
+            ->where('book_id', $book->id)
+            ->where('status', 'active')
+            ->whereDate('start_date', '<=', $now)
+            ->whereDate('end_date', '>=', $now)
+            ->get();
+
+        if ($goals->isEmpty()) {
+            return redirect()->route('reader.books.show', $book->slug)
+                ->withErrors(['pages_read' => 'No active page goal found for this book. Set one in Goals first.']);
+        }
+
+        $achievedCount = 0;
+
+        foreach ($goals as $goal) {
+            $goal->current_value = min($goal->target_value, $goal->current_value + $pagesRead);
+
+            if ($goal->current_value >= $goal->target_value) {
+                $goal->status = 'achieved';
+                $achievedCount++;
+            }
+
+            $goal->save();
+        }
+
+        $message = 'Great progress! '.$pagesRead.' pages were tracked for this book.';
+        if ($achievedCount > 0) {
+            $message .= ' Goal achieved!';
+        }
+
+        return redirect()->route('reader.books.show', $book->slug)->with('status', $message);
     }
 
     public function submitQuiz(Request $request, Quiz $quiz): RedirectResponse
@@ -129,7 +183,10 @@ class ReaderController extends Controller
 
     public function goals()
     {
-        return view('reader.goals', ['goals' => ReadingGoal::where('user_id', auth()->id())->latest()->get()]);
+        return view('reader.goals', [
+            'goals' => ReadingGoal::with('book')->where('user_id', auth()->id())->latest()->get(),
+            'books' => Book::where('status', 'published')->orderBy('title')->get(['id', 'title']),
+        ]);
     }
 
     public function storeGoal(Request $request): RedirectResponse
@@ -137,6 +194,7 @@ class ReaderController extends Controller
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'goal_type' => ['required', 'in:books,pages'],
+            'book_id' => ['nullable', 'exists:books,id', 'required_if:goal_type,pages'],
             'target_value' => ['required', 'integer', 'min:1'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
@@ -144,6 +202,7 @@ class ReaderController extends Controller
 
         ReadingGoal::create([
             'user_id' => auth()->id(),
+            'book_id' => $payload['goal_type'] === 'pages' ? (int) $payload['book_id'] : null,
             'title' => $payload['title'],
             'goal_type' => $payload['goal_type'],
             'target_value' => (int) $payload['target_value'],
