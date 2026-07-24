@@ -67,9 +67,10 @@
 
             @if ($book->pdf_path)
                 <p class="mt-2 text-sm text-[#786A5D]">Read directly in the platform using the embedded PDF viewer.</p>
+                @php($resumePage = max(1, (int) $progress->last_page_read))
                 <div class="mt-4 overflow-hidden rounded-[18px] border border-[#d8c9ad]">
                     <iframe
-                        src="{{ asset('storage/'.$book->pdf_path) }}"
+                        src="{{ asset('storage/'.$book->pdf_path).'#page='.$resumePage }}"
                         class="h-[70vh] w-full bg-white"
                         title="{{ $book->title }} PDF"
                     ></iframe>
@@ -83,13 +84,24 @@
 
         <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
             <h2 class="font-serif text-3xl text-[#1B0D05]">Track Pages Read</h2>
-            <p class="mt-2 text-sm text-[#786A5D]">Log your reading progress for this specific book and achieve your pages goal.</p>
+            <p class="mt-2 text-sm text-[#786A5D]">Resume from where you stopped and keep your goal progress accurate for this book.</p>
+
+            <div class="mt-4 rounded-[16px] border border-[#d8c9ad] bg-[#F4EBD8] p-4 text-sm text-[#5e544d]">
+                <p>Last page reached: <span class="font-semibold text-[#1B0D05]">{{ $progress->last_page_read }}</span></p>
+                <p class="mt-1">Total pages tracked: <span class="font-semibold text-[#1B0D05]">{{ $progress->pages_read_total }}</span></p>
+                @if($progress->last_opened_at)
+                    <p class="mt-1">Last opened: {{ \Illuminate\Support\Carbon::parse($progress->last_opened_at)->format('M d, Y H:i') }}</p>
+                @endif
+                @if($progress->last_opened_at && (!$progress->last_progress_at || \Illuminate\Support\Carbon::parse($progress->last_progress_at)->lt(\Illuminate\Support\Carbon::parse($progress->last_opened_at))))
+                    <p class="mt-2 rounded-lg border border-[#c17b6f] bg-[#FBF6EA] px-3 py-2 text-[#7a2e22]">Today you opened this book, but you have not added any extra pages yet.</p>
+                @endif
+            </div>
 
             <form action="{{ route('reader.books.pages.track', $book->slug) }}" method="POST" class="mt-4 flex flex-wrap items-end gap-3">
                 @csrf
                 <div>
-                    <label for="pages_read" class="mb-1 block text-xs uppercase tracking-[0.2em] text-[#786A5D]">Pages read</label>
-                    <input id="pages_read" type="number" name="pages_read" min="1" placeholder="10" class="w-36 rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2" required>
+                    <label for="current_page" class="mb-1 block text-xs uppercase tracking-[0.2em] text-[#786A5D]">Current page reached</label>
+                    <input id="current_page" type="number" name="current_page" min="1" value="{{ max(1, (int) $progress->last_page_read + 1) }}" class="w-44 rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2" required>
                 </div>
                 <button class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Track progress</button>
             </form>

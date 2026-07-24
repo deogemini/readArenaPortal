@@ -9,6 +9,7 @@ use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
 use App\Models\ReadingGoal;
+use App\Models\ReadingProgress;
 use App\Models\Recommendation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,21 @@ class ReaderController extends Controller
 
         $readerId = auth()->id();
 
+        $progress = ReadingProgress::query()->firstOrCreate(
+            [
+                'user_id' => $readerId,
+                'book_id' => $book->id,
+            ],
+            [
+                'last_page_read' => 0,
+                'pages_read_total' => 0,
+            ]
+        );
+
+        $progress->update([
+            'last_opened_at' => now(),
+        ]);
+
         $quizStats = $book->quizzes->mapWithKeys(function (Quiz $quiz) use ($readerId) {
             $attempts = QuizAttempt::where('quiz_id', $quiz->id)->where('user_id', $readerId)->get();
 
@@ -75,6 +91,7 @@ class ReaderController extends Controller
             'book' => $book,
             'quizStats' => $quizStats,
             'pageGoals' => $pageGoals,
+            'progress' => $progress->fresh(),
         ]);
     }
 
@@ -83,11 +100,36 @@ class ReaderController extends Controller
         $book = Book::where('slug', $slug)->firstOrFail();
 
         $payload = $request->validate([
-            'pages_read' => ['required', 'integer', 'min:1'],
+            'current_page' => ['required', 'integer', 'min:1'],
         ]);
 
-        $pagesRead = (int) $payload['pages_read'];
+        $currentPage = (int) $payload['current_page'];
         $now = now()->toDateString();
+
+        $progress = ReadingProgress::query()->firstOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'book_id' => $book->id,
+            ],
+            [
+                'last_page_read' => 0,
+                'pages_read_total' => 0,
+            ]
+        );
+
+        $lastPage = (int) $progress->last_page_read;
+        $pagesRead = max(0, $currentPage - $lastPage);
+
+        if ($pagesRead === 0) {
+            return redirect()->route('reader.books.show', $book->slug)
+                ->with('status', 'Book opened today, but no new pages were added. Continue from page '.max(1, $lastPage + 1).'.');
+        }
+
+        $progress->update([
+            'last_page_read' => $currentPage,
+            'pages_read_total' => (int) $progress->pages_read_total + $pagesRead,
+            'last_progress_at' => now(),
+        ]);
 
         $goals = ReadingGoal::query()
             ->where('user_id', auth()->id())
@@ -97,11 +139,6 @@ class ReaderController extends Controller
             ->whereDate('start_date', '<=', $now)
             ->whereDate('end_date', '>=', $now)
             ->get();
-
-        if ($goals->isEmpty()) {
-            return redirect()->route('reader.books.show', $book->slug)
-                ->withErrors(['pages_read' => 'No active page goal found for this book. Set one in Goals first.']);
-        }
 
         $achievedCount = 0;
 
@@ -116,9 +153,13 @@ class ReaderController extends Controller
             $goal->save();
         }
 
-        $message = 'Great progress! '.$pagesRead.' pages were tracked for this book.';
+        $message = 'Great progress! You moved from page '.$lastPage.' to page '.$currentPage.' ('.$pagesRead.' new pages).';
         if ($achievedCount > 0) {
             $message .= ' Goal achieved!';
+        }
+
+        if ($goals->isEmpty()) {
+            $message .= ' No active page goal is linked to this book yet.';
         }
 
         return redirect()->route('reader.books.show', $book->slug)->with('status', $message);
