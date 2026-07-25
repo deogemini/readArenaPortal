@@ -74,21 +74,6 @@
                     </form>
                 </section>
 
-                <section class="rounded-[18px] border border-[#3d261b] bg-[#2B170D] p-6">
-                    <h2 class="font-serif text-2xl">Delay Alert Trigger</h2>
-                    <p class="mt-2 text-sm text-[#d8c9ad]">When car travel exceeds allocated time, notify all admin-role users via SMS.</p>
-
-                    <form action="{{ route('admin.settings.sms-gateway.delay-alert') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-3">
-                        @csrf
-                        <input name="car_label" value="{{ old('car_label', 'CAR-01') }}" placeholder="Car label" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                        <input type="number" min="1" name="allocated_minutes" value="{{ old('allocated_minutes', 30) }}" placeholder="Allocated minutes" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                        <input type="number" min="1" name="elapsed_minutes" value="{{ old('elapsed_minutes', 45) }}" placeholder="Elapsed minutes" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                        <div class="md:col-span-3">
-                            <button class="rounded-full border border-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#F4EBD8]">Send Delay Alert</button>
-                        </div>
-                    </form>
-                </section>
-
                 <section class="overflow-hidden rounded-[18px] border border-[#3d261b]">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-[#2B170D]">

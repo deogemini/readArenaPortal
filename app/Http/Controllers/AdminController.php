@@ -18,7 +18,6 @@ use App\Models\Recommendation;
 use App\Models\SmsGatewaySetting;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
-use App\Services\FlexSmsGatewayService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -389,57 +388,6 @@ class AdminController extends Controller
         }
 
         return redirect()->route('admin.settings')->with('status', 'SMS gateway settings saved successfully.');
-    }
-
-    public function sendDelayAlert(Request $request, FlexSmsGatewayService $smsGateway)
-    {
-        $payload = $request->validate([
-            'car_label' => ['required', 'string', 'max:120'],
-            'allocated_minutes' => ['required', 'integer', 'min:1'],
-            'elapsed_minutes' => ['required', 'integer', 'min:1'],
-        ]);
-
-        if ((int) $payload['elapsed_minutes'] <= (int) $payload['allocated_minutes']) {
-            return redirect()->route('admin.settings')->withErrors([
-                'sms_alert' => 'Elapsed time has not exceeded allocated time. No SMS sent.',
-            ]);
-        }
-
-        $smsSetting = SmsGatewaySetting::query()->latest('id')->first();
-        if (!$smsSetting || !$smsSetting->is_enabled) {
-            return redirect()->route('admin.settings')->withErrors([
-                'sms_alert' => 'SMS gateway is disabled. Enable it in settings first.',
-            ]);
-        }
-
-        $admins = User::query()
-            ->where('role', 'admin')
-            ->whereNotNull('phone_number')
-            ->get(['id', 'name', 'phone_number']);
-
-        if ($admins->isEmpty()) {
-            return redirect()->route('admin.settings')->withErrors([
-                'sms_alert' => 'No admin users with phone numbers were found.',
-            ]);
-        }
-
-        $delayMinutes = (int) $payload['elapsed_minutes'] - (int) $payload['allocated_minutes'];
-        $message = 'Car '.$payload['car_label'].' is delayed by '.$delayMinutes.' minutes (allocated: '
-            .$payload['allocated_minutes'].' mins, elapsed: '.$payload['elapsed_minutes'].' mins).';
-
-        $sent = 0;
-        $failed = 0;
-
-        foreach ($admins as $admin) {
-            $result = $smsGateway->send((string) $admin->phone_number, $message);
-            if ($result['ok']) {
-                $sent++;
-            } else {
-                $failed++;
-            }
-        }
-
-        return redirect()->route('admin.settings')->with('status', 'Delay alert processed. Sent: '.$sent.', Failed: '.$failed.'.');
     }
 
     public function users(Request $request)
