@@ -88,6 +88,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'admin@readarena.test'],
             [
                 'name' => 'Aurelia Hart',
+                'phone_number' => '0754995329',
                 'password' => bcrypt('password123'),
                 'email_verified_at' => now(),
                 'role' => 'admin',

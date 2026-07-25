@@ -15,8 +15,10 @@ use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizQuestion;
 use App\Models\Recommendation;
+use App\Models\SmsGatewaySetting;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
+use App\Services\FlexSmsGatewayService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -346,6 +348,7 @@ class AdminController extends Controller
 
         return view('admin.settings', [
             'settings' => PlatformSetting::orderBy('key')->get(),
+            'smsGatewaySetting' => SmsGatewaySetting::query()->latest('id')->first(),
             'roleSummaries' => collect($roles)->map(function (string $role) use ($roleCounts) {
                 return [
                     'role' => $role,
@@ -353,6 +356,90 @@ class AdminController extends Controller
                 ];
             }),
         ]);
+    }
+
+    public function updateSmsGatewaySettings(Request $request)
+    {
+        $payload = $request->validate([
+            'base_url' => ['required', 'url', 'max:255'],
+            'client_id' => ['required', 'string', 'max:255'],
+            'client_secret' => ['required', 'string', 'max:255'],
+            'sender_id' => ['required', 'string', 'max:20'],
+            'is_enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $settings = SmsGatewaySetting::query()->latest('id')->first();
+
+        if (!$settings) {
+            SmsGatewaySetting::create([
+                'base_url' => $payload['base_url'],
+                'client_id' => $payload['client_id'],
+                'client_secret' => $payload['client_secret'],
+                'sender_id' => $payload['sender_id'],
+                'is_enabled' => (bool) ($payload['is_enabled'] ?? false),
+            ]);
+        } else {
+            $settings->update([
+                'base_url' => $payload['base_url'],
+                'client_id' => $payload['client_id'],
+                'client_secret' => $payload['client_secret'],
+                'sender_id' => $payload['sender_id'],
+                'is_enabled' => (bool) ($payload['is_enabled'] ?? false),
+            ]);
+        }
+
+        return redirect()->route('admin.settings')->with('status', 'SMS gateway settings saved successfully.');
+    }
+
+    public function sendDelayAlert(Request $request, FlexSmsGatewayService $smsGateway)
+    {
+        $payload = $request->validate([
+            'car_label' => ['required', 'string', 'max:120'],
+            'allocated_minutes' => ['required', 'integer', 'min:1'],
+            'elapsed_minutes' => ['required', 'integer', 'min:1'],
+        ]);
+
+        if ((int) $payload['elapsed_minutes'] <= (int) $payload['allocated_minutes']) {
+            return redirect()->route('admin.settings')->withErrors([
+                'sms_alert' => 'Elapsed time has not exceeded allocated time. No SMS sent.',
+            ]);
+        }
+
+        $smsSetting = SmsGatewaySetting::query()->latest('id')->first();
+        if (!$smsSetting || !$smsSetting->is_enabled) {
+            return redirect()->route('admin.settings')->withErrors([
+                'sms_alert' => 'SMS gateway is disabled. Enable it in settings first.',
+            ]);
+        }
+
+        $admins = User::query()
+            ->where('role', 'admin')
+            ->whereNotNull('phone_number')
+            ->get(['id', 'name', 'phone_number']);
+
+        if ($admins->isEmpty()) {
+            return redirect()->route('admin.settings')->withErrors([
+                'sms_alert' => 'No admin users with phone numbers were found.',
+            ]);
+        }
+
+        $delayMinutes = (int) $payload['elapsed_minutes'] - (int) $payload['allocated_minutes'];
+        $message = 'Car '.$payload['car_label'].' is delayed by '.$delayMinutes.' minutes (allocated: '
+            .$payload['allocated_minutes'].' mins, elapsed: '.$payload['elapsed_minutes'].' mins).';
+
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($admins as $admin) {
+            $result = $smsGateway->send((string) $admin->phone_number, $message);
+            if ($result['ok']) {
+                $sent++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return redirect()->route('admin.settings')->with('status', 'Delay alert processed. Sent: '.$sent.', Failed: '.$failed.'.');
     }
 
     public function users(Request $request)

@@ -38,6 +38,57 @@
 
         <section class="px-6 py-8 lg:px-8">
             <div class="mx-auto max-w-7xl space-y-6">
+                @if (session('status'))
+                    <div class="rounded-xl border border-[#3d261b] bg-[#2B170D] px-4 py-3 text-sm text-[#F4EBD8]">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="rounded-xl border border-[#7a2e22] bg-[#2B170D] px-4 py-3 text-sm text-[#f8d2c8]">
+                        <ul class="list-disc pl-5">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <section class="rounded-[18px] border border-[#3d261b] bg-[#2B170D] p-6">
+                    <h2 class="font-serif text-2xl">SMS Gateway</h2>
+                    <p class="mt-2 text-sm text-[#d8c9ad]">Configure Flex SMS credentials and enable/disable gateway alerts.</p>
+
+                    <form action="{{ route('admin.settings.sms-gateway.update') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-2">
+                        @csrf
+                        <input name="base_url" value="{{ old('base_url', $smsGatewaySetting->base_url ?? config('services.flex_sms.base_url')) }}" placeholder="Base URL" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <input name="sender_id" value="{{ old('sender_id', $smsGatewaySetting->sender_id ?? config('services.flex_sms.sender_id')) }}" placeholder="Sender ID" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <input name="client_id" value="{{ old('client_id', $smsGatewaySetting->client_id ?? config('services.flex_sms.client_id')) }}" placeholder="Client ID" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <input name="client_secret" value="{{ old('client_secret', $smsGatewaySetting->client_secret ?? config('services.flex_sms.client_secret')) }}" placeholder="Client Secret" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <label class="md:col-span-2 flex items-center gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 text-sm">
+                            <input type="checkbox" name="is_enabled" value="1" @checked(old('is_enabled', $smsGatewaySetting->is_enabled ?? false))>
+                            Enable SMS gateway
+                        </label>
+                        <div class="md:col-span-2">
+                            <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Save SMS settings</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="rounded-[18px] border border-[#3d261b] bg-[#2B170D] p-6">
+                    <h2 class="font-serif text-2xl">Delay Alert Trigger</h2>
+                    <p class="mt-2 text-sm text-[#d8c9ad]">When car travel exceeds allocated time, notify all admin-role users via SMS.</p>
+
+                    <form action="{{ route('admin.settings.sms-gateway.delay-alert') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-3">
+                        @csrf
+                        <input name="car_label" value="{{ old('car_label', 'CAR-01') }}" placeholder="Car label" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <input type="number" min="1" name="allocated_minutes" value="{{ old('allocated_minutes', 30) }}" placeholder="Allocated minutes" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <input type="number" min="1" name="elapsed_minutes" value="{{ old('elapsed_minutes', 45) }}" placeholder="Elapsed minutes" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <div class="md:col-span-3">
+                            <button class="rounded-full border border-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#F4EBD8]">Send Delay Alert</button>
+                        </div>
+                    </form>
+                </section>
+
                 <section class="overflow-hidden rounded-[18px] border border-[#3d261b]">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-[#2B170D]">

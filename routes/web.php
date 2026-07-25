@@ -61,6 +61,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::get('/packages', [AdminController::class, 'packages'])->name('admin.packages');
     Route::post('/packages', [AdminController::class, 'storePackage'])->name('admin.packages.store');
     Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
+    Route::post('/settings/sms-gateway', [AdminController::class, 'updateSmsGatewaySettings'])->name('admin.settings.sms-gateway.update');
+    Route::post('/settings/sms-gateway/delay-alert', [AdminController::class, 'sendDelayAlert'])->name('admin.settings.sms-gateway.delay-alert');
 });
 
 Route::middleware(['auth', 'verified', 'author'])->prefix('author')->group(function () {
