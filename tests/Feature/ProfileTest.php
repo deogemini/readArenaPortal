@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -48,6 +50,29 @@ test('email verification status is unchanged when the email address is unchanged
         ->assertRedirect('/profile');
 
     $this->assertNotNull($user->refresh()->email_verified_at);
+});
+
+test('profile photo can be uploaded', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+    $photo = UploadedFile::fake()->image('avatar.jpg');
+
+    $response = $this
+        ->actingAs($user)
+        ->patch('/profile', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'profile_photo' => $photo,
+        ]);
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/profile');
+
+    $user->refresh();
+
+    $this->assertNotNull($user->profile_photo_path);
+    Storage::disk('public')->assertExists($user->profile_photo_path);
 });
 
 test('user can delete their account', function () {
