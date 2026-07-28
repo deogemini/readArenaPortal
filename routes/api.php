@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MobileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/documentation', [ApiDocsController::class, 'index']);
+Route::get('/docs/swagger', [ApiDocsController::class, 'index']);
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);

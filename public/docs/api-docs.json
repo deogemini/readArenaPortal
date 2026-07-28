@@ -260,7 +260,8 @@
           "name": { "type": "string", "example": "Android User" },
           "email": { "type": "string", "format": "email", "example": "android@example.com" },
           "password": { "type": "string", "format": "password", "example": "password123" },
-          "password_confirmation": { "type": "string", "format": "password", "example": "password123" }
+          "password_confirmation": { "type": "string", "format": "password", "example": "password123" },
+          "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" }
         }
       },
       "LoginRequest": {

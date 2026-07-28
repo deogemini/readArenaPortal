@@ -23,7 +23,8 @@ class AuthController extends Controller
      *             @OA\Property(property="name", type="string", example="Android User"),
      *             @OA\Property(property="email", type="string", format="email", example="android@example.com"),
      *             @OA\Property(property="password", type="string", format="password", example="password123"),
-     *             @OA\Property(property="password_confirmation", type="string", format="password", example="password123")
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="password123"),
+     *             @OA\Property(property="role", type="string", enum={"reader","author"}, example="reader")
      *         )
      *     ),
      *     @OA\Response(response=201, description="Registration successful"),
@@ -36,13 +37,14 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
             'password' => ['required', 'confirmed', 'min:8'],
+            'role' => ['nullable', 'string', 'in:reader,author'],
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => 'reader',
+            'role' => $validated['role'] ?? 'reader',
             'email_verified_at' => now(),
         ]);
 
