@@ -10,9 +10,19 @@ use App\Models\QuizAttempt;
 use App\Models\ReadingProgress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use OpenApi\Annotations as OA;
 
 class MobileController extends Controller
 {
+    /**
+     * @OA\Get(
+     *     path="/api/profile",
+     *     tags={"Profile"},
+     *     summary="Get the authenticated user's profile",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Response(response=200, description="Profile retrieved successfully")
+     * )
+     */
     public function profile(Request $request)
     {
         return response()->json([
@@ -28,6 +38,15 @@ class MobileController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/api/books",
+     *     tags={"Books"},
+     *     summary="List all published books",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Response(response=200, description="Books retrieved successfully")
+     * )
+     */
     public function books()
     {
         $books = Book::query()
@@ -52,6 +71,16 @@ class MobileController extends Controller
         return response()->json(['data' => $books]);
     }
 
+    /**
+     * @OA\Get(
+     *     path="/api/books/{book}",
+     *     tags={"Books"},
+     *     summary="Get a single book with its quizzes",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(name="book", in="path", required=true, description="Book ID", @OA\Schema(type="integer")),
+     *     @OA\Response(response=200, description="Book retrieved successfully")
+     * )
+     */
     public function showBook(Book $book)
     {
         $book->load(['authors', 'genres', 'publisher', 'quizzes' => function ($query) {
@@ -100,6 +129,17 @@ class MobileController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/api/books/{book}/progress",
+     *     tags={"Reading"},
+     *     summary="Sync reading progress for a book",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(name="book", in="path", required=true, description="Book ID", @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(required={"current_page"}, @OA\Property(property="current_page", type="integer", example=25))),
+     *     @OA\Response(response=200, description="Progress synced successfully")
+     * )
+     */
     public function syncProgress(Request $request, Book $book)
     {
         $payload = $request->validate([
@@ -137,6 +177,17 @@ class MobileController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/api/quizzes/{quiz}/submit",
+     *     tags={"Quizzes"},
+     *     summary="Submit answers for a quiz",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(name="quiz", in="path", required=true, description="Quiz ID", @OA\Schema(type="integer")),
+     *     @OA\RequestBody(required=true, @OA\JsonContent(required={"answers"}, @OA\Property(property="answers", type="object", example={"1": 3}))),
+     *     @OA\Response(response=200, description="Quiz submitted successfully")
+     * )
+     */
     public function submitQuiz(Request $request, Quiz $quiz)
     {
         if ($quiz->status !== 'published') {
@@ -190,6 +241,16 @@ class MobileController extends Controller
         ]);
     }
 
+    /**
+     * @OA\Post(
+     *     path="/api/profile/photo",
+     *     tags={"Profile"},
+     *     summary="Upload a profile photo",
+     *     security={{"bearerAuth": {}}},
+     *     @OA\RequestBody(required=true, @OA\MediaType(mediaType="multipart/form-data", @OA\Schema(required={"profile_photo"}, @OA\Property(property="profile_photo", type="string", format="binary")))) ,
+     *     @OA\Response(response=200, description="Profile photo uploaded successfully")
+     * )
+     */
     public function uploadProfilePhoto(Request $request)
     {
         $request->validate([
