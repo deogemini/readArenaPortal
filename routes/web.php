@@ -5,9 +5,11 @@ use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\ReaderController;
+use App\Http\Controllers\Api\ApiDocsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PublicController::class, 'index'])->name('home');
+Route::get('/api/docs/swagger', [ApiDocsController::class, 'index'])->name('api.docs.swagger');
 Route::get('/about', [PublicController::class, 'about'])->name('about');
 Route::get('/library', [PublicController::class, 'library'])->name('library');
 Route::get('/pro-arena', [PublicController::class, 'proArena'])->name('pro-arena');
