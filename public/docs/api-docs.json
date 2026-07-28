@@ -77,6 +77,35 @@
         }
       }
     },
+    "/api/auth/google": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Authenticate a mobile user with Google",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Google login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthLoginResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unable to authenticate with Google"
+          }
+        }
+      }
+    },
     "/api/profile": {
       "get": {
         "tags": ["Profile"],
@@ -270,6 +299,14 @@
         "properties": {
           "email": { "type": "string", "format": "email", "example": "android@example.com" },
           "password": { "type": "string", "format": "password", "example": "password123" }
+        }
+      },
+      "GoogleLoginRequest": {
+        "type": "object",
+        "required": ["access_token"],
+        "properties": {
+          "access_token": { "type": "string", "example": "google-access-token" },
+          "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" }
         }
       },
       "UserSummary": {

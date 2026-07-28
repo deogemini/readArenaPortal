@@ -7,6 +7,40 @@ use App\Models\QuizQuestion;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Socialite\Facades\Socialite;
+
+test('users can login with google through the api', function () {
+    $googleUser = new class {
+        public function getEmail(): string
+        {
+            return 'google@example.com';
+        }
+
+        public function getName(): string
+        {
+            return 'Google User';
+        }
+    };
+
+    Socialite::shouldReceive('driver')->with('google')->andReturnSelf();
+    Socialite::shouldReceive('userFromToken')->with('google-access-token')->andReturn($googleUser);
+
+    $response = $this->postJson('/api/auth/google', [
+        'access_token' => 'google-access-token',
+        'role' => 'reader',
+    ]);
+
+    $response
+        ->assertStatus(200)
+        ->assertJsonStructure([
+            'message',
+            'user' => ['id', 'name', 'email'],
+            'token',
+        ])
+        ->assertJsonPath('user.email', 'google@example.com');
+
+    $this->assertDatabaseHas('users', ['email' => 'google@example.com']);
+});
 
 test('users can register through the api', function () {
     $response = $this->postJson('/api/auth/register', [

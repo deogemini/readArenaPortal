@@ -10,6 +10,7 @@ Route::get('/docs/swagger', [ApiDocsController::class, 'index']);
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/google', [AuthController::class, 'google']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [MobileController::class, 'profile']);
