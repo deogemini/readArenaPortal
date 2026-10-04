@@ -104,6 +104,29 @@
                             <p class="mt-1 text-xs text-[#786A5D]">
                                 {{ \Illuminate\Support\Carbon::parse($goal->start_date)->format('M d, Y') }} - {{ \Illuminate\Support\Carbon::parse($goal->end_date)->format('M d, Y') }}
                             </p>
+                            <details class="mt-4 rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] p-4">
+                                <summary class="cursor-pointer text-sm font-semibold text-[#1B0D05]">Edit goal</summary>
+                                <form action="{{ route('reader.goals.update', $goal) }}" method="POST" class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    @csrf @method('PATCH')
+                                    <input name="title" value="{{ $goal->title }}" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm" aria-label="Goal title">
+                                    <select name="goal_type" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm">
+                                        <option value="books" @selected($goal->goal_type === 'books')>Books</option>
+                                        <option value="pages" @selected($goal->goal_type === 'pages')>Pages</option>
+                                    </select>
+                                    <select name="book_id" class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm">
+                                        <option value="">No linked book</option>
+                                        @foreach ($books as $book)<option value="{{ $book->id }}" @selected($goal->book_id === $book->id)>{{ $book->title }}</option>@endforeach
+                                    </select>
+                                    <input type="number" name="target_value" value="{{ $goal->target_value }}" min="1" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm" aria-label="Target value">
+                                    <input type="date" name="start_date" value="{{ \Illuminate\Support\Carbon::parse($goal->start_date)->toDateString() }}" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm" aria-label="Start date">
+                                    <input type="date" name="end_date" value="{{ \Illuminate\Support\Carbon::parse($goal->end_date)->toDateString() }}" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm" aria-label="End date">
+                                    <button class="w-fit rounded-full bg-[#1B0D05] px-4 py-2 text-sm font-semibold text-[#FBF6EA]">Save changes</button>
+                                </form>
+                            </details>
+                            <form action="{{ route('reader.goals.destroy', $goal) }}" method="POST" class="mt-3" onsubmit="return confirm('Delete this reading goal?')">
+                                @csrf @method('DELETE')
+                                <button class="rounded-full border border-[#c17b6f] px-4 py-2 text-sm text-[#7a2e22]">Delete goal</button>
+                            </form>
                         </div>
                     @empty
                         <p class="text-sm text-[#5e544d]">No goals yet. Create your first reading goal to start tracking progress.</p>

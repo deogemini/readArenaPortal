@@ -16,4 +16,14 @@ class LiveShow extends Model
     {
         return $this->belongsTo(Book::class);
     }
+
+    public function rsvps()
+    {
+        return $this->hasMany(ShowRsvp::class);
+    }
+
+    public function applications()
+    {
+        return $this->hasMany(ShowApplication::class);
+    }
 }

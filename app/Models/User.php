@@ -49,6 +49,21 @@ class User extends Authenticatable
         return $this->hasMany(ReadingGoal::class);
     }
 
+    public function readerShelves(): HasMany
+    {
+        return $this->hasMany(ReaderShelf::class);
+    }
+
+    public function bookmarks(): HasMany
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function bookReviews(): HasMany
+    {
+        return $this->hasMany(BookReview::class);
+    }
+
     public function challengerDuels(): HasMany
     {
         return $this->hasMany(Duel::class, 'challenger_id');

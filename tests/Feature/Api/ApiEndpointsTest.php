@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Book;
+use App\Models\BookReview;
 use App\Models\Quiz;
 use App\Models\QuizAnswer;
 use App\Models\QuizQuestion;
@@ -97,6 +98,64 @@ test('books can be fetched through the api', function () {
         ]);
 });
 
+test('android book discovery filters by reading criteria and returns catalogue stats', function () {
+    $reader = User::factory()->create();
+    $matchingBook = Book::create([
+        'title' => 'A Match for Readers',
+        'slug' => 'a-match-for-readers',
+        'description' => 'A filtered catalogue result.',
+        'publication_year' => 2020,
+        'page_count' => 280,
+        'language' => 'en',
+        'isbn' => '9780000000101',
+        'featured' => true,
+        'status' => 'published',
+    ]);
+    $otherBook = Book::create([
+        'title' => 'Another Book',
+        'slug' => 'another-book',
+        'description' => 'Does not meet the selected filters.',
+        'publication_year' => 1990,
+        'page_count' => 100,
+        'language' => 'fr',
+        'isbn' => '9780000000102',
+        'featured' => false,
+        'status' => 'published',
+    ]);
+    \App\Models\ReaderShelf::create([
+        'user_id' => $reader->id,
+        'book_id' => $matchingBook->id,
+        'status' => 'currently_reading',
+    ]);
+    \App\Models\Quiz::create([
+        'book_id' => $matchingBook->id,
+        'title' => 'Published comprehension quiz',
+        'instructions' => 'Answer the questions.',
+        'pass_mark' => 70,
+        'attempt_limit' => 3,
+        'duration_minutes' => 10,
+        'status' => 'published',
+    ]);
+    BookReview::create([
+        'user_id' => User::factory()->create()->id,
+        'book_id' => $matchingBook->id,
+        'rating' => 5,
+        'body' => 'Excellent book.',
+        'status' => 'published',
+    ]);
+
+    $response = $this->actingAs($reader, 'sanctum')->getJson('/api/books?language=en&publication_year=2020&min_pages=200&max_pages=300&reading_status=currently_reading&quiz_available=true&featured=true&min_rating=4&sort=highest_rated');
+
+    $response
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $matchingBook->id)
+        ->assertJsonPath('data.0.average_rating', 5)
+        ->assertJsonPath('data.0.reader_count', 1)
+        ->assertJsonPath('data.0.completed_count', 0)
+        ->assertJsonPath('data.0.duels_count', 0);
+});
+
 test('book details and quiz submission can be handled through the api', function () {
     $user = User::factory()->create();
     $book = Book::create([
@@ -144,6 +203,10 @@ test('book details and quiz submission can be handled through the api', function
         'answers' => [$question->id => $question->answers()->first()->id],
     ]);
     $quizResponse->assertStatus(200)->assertJsonPath('data.score', 100);
+    $this->assertDatabaseHas('reader_notifications', [
+        'user_id' => $user->id,
+        'type' => 'quiz_passed',
+    ]);
 });
 
 test('profile photos can be uploaded through the api', function () {

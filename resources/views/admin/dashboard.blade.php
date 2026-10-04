@@ -20,6 +20,7 @@
             <a href="/admin/quizzes" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Quizzes</a>
             <a href="/admin/duels" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Duels</a>
             <a href="/admin/shows" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Shows</a>
+            <a href="{{ route('admin.reviews') }}" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Review moderation</a>
             <a href="/admin/packages" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Packages</a>
             <a href="/admin/settings" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Settings</a>
         </nav>
@@ -56,12 +57,13 @@
             </div>
         @endif
 
-        <section class="grid gap-4 px-6 py-8 lg:grid-cols-5 lg:px-8">
+        <section class="grid gap-4 px-6 py-8 lg:grid-cols-6 lg:px-8">
             @foreach([
                 ['label'=>'Readers','value'=>$readers],
                 ['label'=>'Published books','value'=>$books],
                 ['label'=>'Quizzes','value'=>$quizzes],
                 ['label'=>'Live shows','value'=>$shows],
+                ['label'=>'Pending reviews','value'=>$pendingReviews],
                 ['label'=>'Ongoing competitions','value'=>$ongoingCompetitions],
             ] as $card)
                 <div class="rounded-[24px] border border-[#3d261b] bg-[#2B170D] p-5">
@@ -86,12 +88,14 @@
             <div class="rounded-[28px] border border-[#3d261b] bg-[#2B170D] p-6">
                 <h2 class="font-serif text-2xl">Recent activity</h2>
                 <div class="mt-4 space-y-3">
-                    @foreach([['label'=>'Book uploaded','detail'=>'Beloved staged for review'],['label'=>'Quiz published','detail'=>'Things Fall Apart quiz approved'],['label'=>'Show scheduled','detail'=>'The Wednesday Salon confirmed']] as $item)
+                    @forelse($recentActivity as $item)
                         <div class="rounded-[18px] border border-[#3d261b] bg-[#1B0D05] p-4">
-                            <h3 class="font-semibold">{{ $item['label'] }}</h3>
+                            <div class="flex items-center justify-between gap-3"><h3 class="font-semibold">{{ $item['label'] }}</h3><time class="text-xs text-[#b8ab95]">{{ $item['date']?->diffForHumans() }}</time></div>
                             <p class="mt-1 text-sm text-[#d8c9ad]">{{ $item['detail'] }}</p>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="rounded-[18px] border border-[#3d261b] bg-[#1B0D05] p-4 text-sm text-[#d8c9ad]">Platform activity will appear here as readers use the site.</p>
+                    @endforelse
                 </div>
             </div>
         </section>

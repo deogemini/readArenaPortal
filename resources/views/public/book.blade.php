@@ -21,6 +21,7 @@
                 <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">{{ $book->genres->first()?->name ?? 'Classic' }}</p>
                 <h1 class="mt-2 font-serif text-3xl text-[#1B0D05]">{{ $book->title }}</h1>
                 <p class="mt-2 text-sm text-[#786A5D]">by {{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
+                <p class="mt-2 text-sm text-[#786A5D]">{{ $reviews->total() ? number_format($reviewAverage, 1).' / 5 from '.$reviews->total().' reader reviews' : 'No reader reviews yet' }}</p>
                 <div class="mt-5 flex flex-wrap gap-3 text-sm">
                     <span class="rounded-full border border-[#d8c9ad] px-3 py-1">{{ $book->publication_year }}</span>
                     <span class="rounded-full border border-[#d8c9ad] px-3 py-1">{{ $book->page_count }} pages</span>
@@ -41,6 +42,43 @@
             </div>
         </div>
     </main>
+    <section class="mx-auto max-w-7xl px-6 pb-12 lg:px-8">
+        <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
+            <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Reader voices</p>
+            <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">Recommendations for {{ $book->title }}</h2>
+            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                @forelse ($recommendations as $recommendation)
+                    <article class="rounded-[20px] border border-[#d8c9ad] bg-[#F4EBD8] p-5">
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="font-semibold text-[#1B0D05]">{{ $recommendation->user?->name ?? 'ReadArena reader' }}</p>
+                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $recommendation->rating }} / 5</span>
+                        </div>
+                        <p class="mt-3 text-sm leading-7 text-[#5e544d]">{{ $recommendation->message }}</p>
+                    </article>
+                @empty
+                    <p class="text-sm text-[#786A5D]">No public recommendations for this book yet.</p>
+                @endforelse
+            </div>
+        </div>
+    </section>
+    <section class="mx-auto max-w-7xl px-6 pb-12 lg:px-8">
+        <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
+            <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Moderated reviews</p>
+            <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">What readers thought</h2>
+            <div class="mt-5 space-y-4">
+                @forelse ($reviews as $review)
+                    <article class="rounded-[20px] border border-[#d8c9ad] bg-[#F4EBD8] p-5">
+                        <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-semibold text-[#1B0D05]">{{ $review->title ?: 'Reader review' }}</h3><span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $review->rating }} / 5</span></div>
+                        <p class="mt-2 text-sm leading-7 text-[#5e544d]">{{ $review->body }}</p>
+                        <p class="mt-3 text-xs text-[#786A5D]">{{ $review->user?->name ?? 'ReadArena reader' }}</p>
+                    </article>
+                @empty
+                    <p class="text-sm text-[#786A5D]">No approved reviews for this book yet.</p>
+                @endforelse
+            </div>
+            <div class="mt-4">{{ $reviews->links() }}</div>
+        </div>
+    </section>
 </div>
 </body>
 </html>

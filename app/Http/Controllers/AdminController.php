@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Author;
 use App\Models\Book;
+use App\Models\BookReview;
 use App\Models\Duel;
 use App\Models\Genre;
 use App\Models\Lesson;
@@ -13,16 +14,20 @@ use App\Models\PlatformSetting;
 use App\Models\Publisher;
 use App\Models\Quiz;
 use App\Models\QuizAnswer;
+use App\Models\QuizAttempt;
 use App\Models\QuizQuestion;
 use App\Models\Recommendation;
 use App\Models\SmsGatewaySetting;
+use App\Models\ShowApplication;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
+use App\Services\ShowParticipationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
@@ -40,13 +45,44 @@ class AdminController extends Controller
             $competitionVideosQuery->where('title', 'like', '%'.$videoSearch.'%');
         }
 
+        $recentActivity = collect()
+            ->merge(QuizAttempt::query()->with(['user:id,name', 'quiz.book:id,title'])->latest()->limit(5)->get()->map(fn (QuizAttempt $attempt) => [
+                'label' => $attempt->passed ? 'Quiz passed' : 'Quiz attempted',
+                'detail' => ($attempt->user?->name ?? 'Reader').' scored '.$attempt->score.'% on '.($attempt->quiz?->title ?? 'a quiz'),
+                'date' => $attempt->created_at,
+            ]))
+            ->merge(Duel::query()->with(['book:id,title', 'challenger:id,name', 'opponent:id,name'])->latest()->limit(5)->get()->map(fn (Duel $duel) => [
+                'label' => 'Duel '.$duel->status,
+                'detail' => ($duel->challenger?->name ?? 'Reader').' challenged '.($duel->opponent?->name ?? 'another reader').' on '.($duel->book?->title ?? 'a book'),
+                'date' => $duel->updated_at,
+            ]))
+            ->merge(LiveShow::query()->latest('updated_at')->limit(5)->get()->map(fn (LiveShow $show) => [
+                'label' => 'Show '.$show->status,
+                'detail' => $show->title.' · '.$show->start_at?->format('M j, Y g:i A'),
+                'date' => $show->updated_at,
+            ]))
+            ->merge(Lesson::query()->with(['user:id,name', 'book:id,title'])->where('status', 'published')->latest()->limit(5)->get()->map(fn (Lesson $lesson) => [
+                'label' => 'Lesson published',
+                'detail' => ($lesson->user?->name ?? 'Reader').' shared a lesson from '.($lesson->book?->title ?? 'a book'),
+                'date' => $lesson->updated_at,
+            ]))
+            ->merge(Recommendation::query()->with(['user:id,name', 'book:id,title'])->where('status', 'published')->latest()->limit(5)->get()->map(fn (Recommendation $recommendation) => [
+                'label' => 'Book recommended',
+                'detail' => ($recommendation->user?->name ?? 'Reader').' recommended '.($recommendation->book?->title ?? 'a book'),
+                'date' => $recommendation->updated_at,
+            ]))
+            ->sortByDesc('date')
+            ->take(8)
+            ->values();
+
         return view('admin.dashboard', [
-            'readers' => User::count(),
-            'books' => Book::count(),
+            'readers' => User::where('role', 'reader')->count(),
+            'books' => Book::where('status', 'published')->count(),
             'quizzes' => Quiz::count(),
             'shows' => LiveShow::count(),
             'lessons' => Lesson::count(),
             'recommendations' => Recommendation::count(),
+            'pendingReviews' => BookReview::where('status', 'pending')->count(),
             'ongoingCompetitions' => Duel::query()->whereIn('status', $ongoingDuelStatuses)->count()
                 + LiveShow::query()
                     ->whereIn('status', $ongoingShowStatuses)
@@ -55,6 +91,7 @@ class AdminController extends Controller
             'liveShows' => LiveShow::query()->orderBy('start_at')->get(['id', 'title']),
             'competitionVideos' => $competitionVideosQuery->paginate(4)->withQueryString(),
             'videoSearch' => $videoSearch,
+            'recentActivity' => $recentActivity,
         ]);
     }
 
@@ -148,7 +185,7 @@ class AdminController extends Controller
             'pdf_file.max' => 'PDF must be 3MB or smaller with current server settings.',
         ]);
 
-        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'public');
+        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'local');
 
         $publisher = Publisher::firstOrCreate([
             'name' => $payload['publisher_name'] ?? 'Independent Press',
@@ -183,7 +220,14 @@ class AdminController extends Controller
 
     public function destroyBook(Book $book): RedirectResponse
     {
-        if ($book->pdf_path && Storage::disk('public')->exists($book->pdf_path)) {
+        if ($book->quizzes()->whereHas('attempts')->exists()) {
+            return redirect()->route('admin.books')->withErrors([
+                'book_delete' => 'This book has quiz history and cannot be deleted.',
+            ]);
+        }
+
+        if ($book->pdf_path) {
+            Storage::disk('local')->delete($book->pdf_path);
             Storage::disk('public')->delete($book->pdf_path);
         }
 
@@ -192,12 +236,82 @@ class AdminController extends Controller
         return redirect()->route('admin.books')->with('status', 'Book deleted successfully.');
     }
 
+    public function updateBook(Request $request, Book $book): RedirectResponse
+    {
+        $payload = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'author_name' => ['required', 'string', 'max:255'],
+            'genre_name' => ['required', 'string', 'max:120'],
+            'publisher_name' => ['nullable', 'string', 'max:255'],
+            'publication_year' => ['nullable', 'integer', 'min:1400', 'max:2100'],
+            'page_count' => ['nullable', 'integer', 'min:1'],
+            'language' => ['nullable', 'string', 'max:10'],
+            'isbn' => ['nullable', 'string', 'max:100'],
+            'cover_image' => ['nullable', 'url'],
+            'pdf_file' => ['nullable', 'file', 'mimes:pdf', 'max:3072'],
+            'status' => ['required', 'in:draft,published'],
+            'featured' => ['nullable', 'boolean'],
+        ]);
+
+        $publisher = Publisher::firstOrCreate(['name' => $payload['publisher_name'] ?: 'Independent Press']);
+        $data = [
+            'title' => $payload['title'],
+            'slug' => $book->title === $payload['title'] ? $book->slug : Str::slug($payload['title']).'-'.Str::lower(Str::random(6)),
+            'description' => $payload['description'] ?? null,
+            'publisher_id' => $publisher->id,
+            'publication_year' => $payload['publication_year'] ?? null,
+            'page_count' => $payload['page_count'] ?? null,
+            'language' => $payload['language'] ?? 'en',
+            'isbn' => $payload['isbn'] ?? null,
+            'cover_image' => $payload['cover_image'] ?? null,
+            'featured' => (bool) ($payload['featured'] ?? false),
+            'status' => $payload['status'],
+        ];
+
+        if ($request->hasFile('pdf_file')) {
+            $oldPath = $book->pdf_path;
+            $data['pdf_path'] = $request->file('pdf_file')->store('books/pdfs', 'local');
+            if ($oldPath) {
+                Storage::disk('local')->delete($oldPath);
+                Storage::disk('public')->delete($oldPath);
+            }
+        }
+
+        $book->update($data);
+        $book->authors()->sync([Author::firstOrCreate(['name' => $payload['author_name']])->id]);
+        $genre = Genre::firstOrCreate(['slug' => Str::slug($payload['genre_name'])], ['name' => $payload['genre_name']]);
+        $book->genres()->sync([$genre->id]);
+
+        return redirect()->route('admin.books')->with('status', 'Book updated successfully.');
+    }
+
     public function quizzes()
     {
         return view('admin.quizzes', [
             'quizzes' => Quiz::with(['book', 'questions.answers', 'questions.editor'])->withCount('attempts')->latest()->paginate(10),
             'books' => Book::orderBy('title')->get(['id', 'title']),
         ]);
+    }
+
+    public function updateQuiz(Request $request, Quiz $quiz): RedirectResponse
+    {
+        $payload = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'instructions' => ['nullable', 'string'],
+            'pass_mark' => ['required', 'integer', 'min:1', 'max:100'],
+            'attempt_limit' => ['required', 'integer', 'min:1'],
+            'duration_minutes' => ['required', 'integer', 'min:1'],
+            'status' => ['required', 'in:draft,published'],
+        ]);
+
+        if ($payload['status'] === 'published' && ! Book::whereKey($quiz->book_id)->where('status', 'published')->exists()) {
+            return back()->withInput()->withErrors(['status' => 'Publish the related book before publishing its quiz.']);
+        }
+
+        $quiz->update($payload);
+
+        return redirect()->route('admin.quizzes')->with('status', 'Quiz updated successfully.');
     }
 
     public function updateQuizQuestion(Request $request, QuizQuestion $question): RedirectResponse
@@ -248,6 +362,19 @@ class AdminController extends Controller
         $wrongTwo->update(['body' => $payload['wrong_answer_2'], 'is_correct' => false]);
 
         return redirect()->route('admin.quizzes')->with('status', 'Question updated successfully.');
+    }
+
+    public function destroyQuizQuestion(QuizQuestion $question): RedirectResponse
+    {
+        if ($question->quiz()->whereHas('attempts')->exists()) {
+            return redirect()->route('admin.quizzes')->withErrors([
+                'question_delete' => 'Questions on a quiz with reader attempts cannot be deleted.',
+            ]);
+        }
+
+        $question->delete();
+
+        return redirect()->route('admin.quizzes')->with('status', 'Question deleted successfully.');
     }
 
     public function destroyQuiz(Quiz $quiz): RedirectResponse
@@ -328,12 +455,100 @@ class AdminController extends Controller
 
     public function duels()
     {
-        return view('admin.duels');
+        return view('admin.duels', [
+            'duels' => Duel::query()
+                ->with(['book:id,title', 'challenger:id,name,email', 'opponent:id,name,email'])
+                ->latest()
+                ->paginate(15),
+        ]);
+    }
+
+    public function updateDuelStatus(Request $request, Duel $duel): RedirectResponse
+    {
+        $payload = $request->validate(['status' => ['required', 'in:cancelled,disputed']]);
+        if (in_array($duel->status, ['completed', 'rejected', 'cancelled'], true)) {
+            return redirect()->route('admin.duels')->withErrors(['duel' => 'This duel is already closed.']);
+        }
+
+        $duel->update(['status' => $payload['status']]);
+
+        return redirect()->route('admin.duels')->with('status', 'Duel status updated.');
+    }
+
+    public function reviews()
+    {
+        return view('admin.reviews', [
+            'reviews' => BookReview::query()->with(['book:id,title,slug', 'user:id,name,email'])->latest()->paginate(20),
+        ]);
+    }
+
+    public function moderateReview(Request $request, BookReview $review): RedirectResponse
+    {
+        $payload = $request->validate(['status' => ['required', 'in:published,rejected']]);
+        $review->update(['status' => $payload['status']]);
+
+        return redirect()->route('admin.reviews')->with('status', 'Review '.$payload['status'].'.');
     }
 
     public function shows()
     {
-        return view('admin.shows', ['shows' => LiveShow::with('book')->latest()->paginate(10)]);
+        return view('admin.shows', [
+            'shows' => LiveShow::with(['book', 'applications.user'])->withCount('applications')->orderByDesc('start_at')->paginate(10),
+            'books' => Book::where('status', 'published')->orderBy('title')->get(['id', 'title']),
+        ]);
+    }
+
+    public function reviewShowApplication(Request $request, ShowApplication $application, ShowParticipationService $participation): RedirectResponse
+    {
+        $payload = $request->validate(['status' => ['required', 'in:approved,rejected']]);
+        $participation->review($application, $payload['status']);
+
+        return redirect()->route('admin.shows')->with('status', 'Guest application '.$payload['status'].'.');
+    }
+
+    public function storeShow(Request $request): RedirectResponse
+    {
+        $payload = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'book_id' => ['nullable', 'integer', 'exists:books,id'],
+            'start_at' => ['required', 'date'],
+            'status' => ['required', 'in:scheduled,live,completed,cancelled'],
+        ]);
+
+        if (! empty($payload['book_id']) && ! Book::whereKey($payload['book_id'])->where('status', 'published')->exists()) {
+            return back()->withInput()->withErrors(['book_id' => 'Choose a published book.']);
+        }
+
+        LiveShow::create($payload);
+
+        return redirect()->route('admin.shows')->with('status', 'Show created successfully.');
+    }
+
+    public function updateShow(Request $request, LiveShow $show): RedirectResponse
+    {
+        $payload = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:10000'],
+            'book_id' => ['nullable', 'integer', 'exists:books,id'],
+            'start_at' => ['required', 'date'],
+            'status' => ['required', 'in:scheduled,live,completed,cancelled'],
+        ]);
+
+        if (! empty($payload['book_id']) && ! Book::whereKey($payload['book_id'])->where('status', 'published')->exists()) {
+            return back()->withInput()->withErrors(['book_id' => 'Choose a published book.']);
+        }
+
+        $show->update($payload);
+
+        return redirect()->route('admin.shows')->with('status', 'Show updated successfully.');
+    }
+
+    public function destroyShow(LiveShow $show): RedirectResponse
+    {
+        $show->delete();
+
+        return redirect()->route('admin.shows')->with('status', 'Show deleted successfully.');
     }
 
     public function settings()
@@ -485,5 +700,27 @@ class AdminController extends Controller
         ]);
 
         return redirect()->route('admin.packages')->with('status', 'Subscription package created.');
+    }
+
+    public function updatePackage(Request $request, SubscriptionPackage $package): RedirectResponse
+    {
+        $payload = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('subscription_packages', 'name')->ignore($package->id)],
+            'price_tsh' => ['required', 'integer', 'min:1'],
+            'games_count' => ['required', 'integer', 'min:1'],
+            'reward_label' => ['nullable', 'string', 'max:255'],
+            'region_scope' => ['nullable', 'string', 'max:100'],
+            'status' => ['required', 'in:active,inactive'],
+        ]);
+        $package->update($payload);
+
+        return redirect()->route('admin.packages')->with('status', 'Subscription package updated.');
+    }
+
+    public function destroyPackage(SubscriptionPackage $package): RedirectResponse
+    {
+        $package->delete();
+
+        return redirect()->route('admin.packages')->with('status', 'Subscription package deleted.');
     }
 }

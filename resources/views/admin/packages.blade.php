@@ -83,6 +83,7 @@
                                 <th class="px-4 py-3">Reward</th>
                                 <th class="px-4 py-3">Scope</th>
                                 <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="bg-[#1B0D05]">
@@ -94,10 +95,26 @@
                                     <td class="px-4 py-3">{{ $package->reward_label ?? '-' }}</td>
                                     <td class="px-4 py-3">{{ $package->region_scope }}</td>
                                     <td class="px-4 py-3">{{ ucfirst($package->status) }}</td>
+                                    <td class="px-4 py-3">
+                                        <details>
+                                            <summary class="cursor-pointer text-xs text-[#D8A83E]">Edit</summary>
+                                            <form action="{{ route('admin.packages.update', $package) }}" method="POST" class="mt-2 grid min-w-56 gap-2 rounded-xl border border-[#3d261b] bg-[#2B170D] p-3">
+                                                @csrf @method('PATCH')
+                                                <input name="name" value="{{ $package->name }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Name">
+                                                <input type="number" name="price_tsh" value="{{ $package->price_tsh }}" min="1" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Price in TSH">
+                                                <input type="number" name="games_count" value="{{ $package->games_count }}" min="1" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Games">
+                                                <input name="reward_label" value="{{ $package->reward_label }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Reward">
+                                                <input name="region_scope" value="{{ $package->region_scope }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Scope">
+                                                <select name="status" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs"><option value="active" @selected($package->status === 'active')>Active</option><option value="inactive" @selected($package->status === 'inactive')>Inactive</option></select>
+                                                <button class="rounded-full bg-[#D8A83E] px-3 py-2 text-xs font-semibold text-[#1B0D05]">Save package</button>
+                                            </form>
+                                        </details>
+                                        <form action="{{ route('admin.packages.destroy', $package) }}" method="POST" class="mt-2" onsubmit="return confirm('Delete this package?')">@csrf @method('DELETE')<button class="rounded-full border border-[#7a2e22] px-3 py-1 text-xs text-[#f8d2c8]">Delete</button></form>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-4 py-6 text-[#d8c9ad]">No packages created yet.</td>
+                                    <td colspan="7" class="px-4 py-6 text-[#d8c9ad]">No packages created yet.</td>
                                 </tr>
                             @endforelse
                         </tbody>

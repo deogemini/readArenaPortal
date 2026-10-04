@@ -115,6 +115,26 @@
                                 <td class="px-4 py-3">{{ $book->pdf_path ? 'Uploaded' : 'Missing' }}</td>
                                 <td class="px-4 py-3">{{ optional($book->created_at)->format('Y-m-d') }}</td>
                                 <td class="px-4 py-3">
+                                    <details class="mb-2">
+                                        <summary class="cursor-pointer rounded-full border border-[#d8c9ad] px-3 py-1 text-center text-xs">Edit</summary>
+                                        <form action="{{ route('admin.books.update', $book) }}" method="POST" enctype="multipart/form-data" class="mt-3 grid min-w-64 gap-2 rounded-xl border border-[#3d261b] bg-[#2B170D] p-3">
+                                            @csrf @method('PATCH')
+                                            <input name="title" value="{{ $book->title }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Title">
+                                            <input name="author_name" value="{{ $book->authors->first()?->name }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Author">
+                                            <input name="genre_name" value="{{ $book->genres->first()?->name }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Genre">
+                                            <input name="publisher_name" value="{{ $book->publisher?->name }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Publisher">
+                                            <input type="number" name="publication_year" value="{{ $book->publication_year }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Year">
+                                            <input type="number" name="page_count" value="{{ $book->page_count }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Pages">
+                                            <input name="language" value="{{ $book->language }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Language">
+                                            <input name="isbn" value="{{ $book->isbn }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="ISBN">
+                                            <input name="cover_image" value="{{ $book->cover_image }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Cover URL">
+                                            <textarea name="description" rows="3" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Description">{{ $book->description }}</textarea>
+                                            <input type="file" name="pdf_file" accept="application/pdf" class="w-full rounded-lg bg-[#1B0D05] px-3 py-2 text-xs">
+                                            <select name="status" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs"><option value="draft" @selected($book->status === 'draft')>Draft</option><option value="published" @selected($book->status === 'published')>Published</option></select>
+                                            <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="featured" value="1" @checked($book->featured)> Featured</label>
+                                            <button class="rounded-full bg-[#D8A83E] px-3 py-2 text-xs font-semibold text-[#1B0D05]">Save book</button>
+                                        </form>
+                                    </details>
                                     <form action="{{ route('admin.books.destroy', $book) }}" method="POST" onsubmit="return confirm('Delete this book? This also removes related quizzes and attempts.');">
                                         @csrf
                                         @method('DELETE')

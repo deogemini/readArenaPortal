@@ -121,7 +121,22 @@
                         <tbody class="bg-[#1B0D05]">
                             @forelse($quizzes as $quiz)
                                 <tr class="border-t border-[#3d261b]">
-                                    <td class="px-4 py-3">{{ $quiz->title }}</td>
+                                    <td class="px-4 py-3">
+                                        {{ $quiz->title }}
+                                        <details class="mt-2">
+                                            <summary class="cursor-pointer text-xs text-[#D8A83E]">Edit quiz settings</summary>
+                                            <form action="{{ route('admin.quizzes.update', $quiz) }}" method="POST" class="mt-2 grid min-w-64 gap-2 rounded-xl border border-[#3d261b] bg-[#2B170D] p-3">
+                                                @csrf @method('PATCH')
+                                                <input name="title" value="{{ $quiz->title }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Title">
+                                                <textarea name="instructions" rows="2" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Instructions">{{ $quiz->instructions }}</textarea>
+                                                <input type="number" name="pass_mark" value="{{ $quiz->pass_mark }}" min="1" max="100" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" aria-label="Pass mark">
+                                                <input type="number" name="attempt_limit" value="{{ $quiz->attempt_limit }}" min="1" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" aria-label="Attempt limit">
+                                                <input type="number" name="duration_minutes" value="{{ $quiz->duration_minutes }}" min="1" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" aria-label="Duration">
+                                                <select name="status" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs"><option value="draft" @selected($quiz->status === 'draft')>Draft</option><option value="published" @selected($quiz->status === 'published')>Published</option></select>
+                                                <button class="rounded-full bg-[#D8A83E] px-3 py-2 text-xs font-semibold text-[#1B0D05]">Save quiz</button>
+                                            </form>
+                                        </details>
+                                    </td>
                                     <td class="px-4 py-3">{{ $quiz->book->title ?? '-' }}</td>
                                     <td class="px-4 py-3">{{ $quiz->questions->count() }}</td>
                                     <td class="px-4 py-3">{{ $quiz->attempts_count }}</td>
@@ -169,6 +184,11 @@
                                                     <button class="rounded-full bg-[#D8A83E] px-4 py-2 text-xs font-semibold text-[#1B0D05]">Save question changes</button>
                                                 </div>
                                             </form>
+                                            @if ($quiz->attempts_count === 0)
+                                                <form action="{{ route('admin.quiz-questions.destroy', $question) }}" method="POST" class="mt-3" onsubmit="return confirm('Delete this question?')">@csrf @method('DELETE')<button class="rounded-full border border-[#7a2e22] px-4 py-2 text-xs text-[#f8d2c8]">Delete question</button></form>
+                                            @else
+                                                <p class="mt-3 text-xs text-[#b8ab95]">Question deletion is locked because readers have quiz attempts.</p>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

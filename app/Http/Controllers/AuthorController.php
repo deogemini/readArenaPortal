@@ -44,7 +44,7 @@ class AuthorController extends Controller
             'pdf_file.max' => 'PDF must be 3MB or smaller with current server settings.',
         ]);
 
-        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'public');
+        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'local');
 
         $publisher = Publisher::firstOrCreate(['name' => 'Independent Press']);
         $book = Book::create([

@@ -41,4 +41,24 @@ class Book extends Model
     {
         return $this->hasMany(Quiz::class);
     }
+
+    public function readerShelves()
+    {
+        return $this->hasMany(ReaderShelf::class);
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(BookReview::class);
+    }
+
+    public function duels()
+    {
+        return $this->hasMany(Duel::class);
+    }
 }

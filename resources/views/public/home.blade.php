@@ -114,28 +114,22 @@
                         <p class="text-sm font-semibold uppercase tracking-[0.35em] text-[#D8A83E]">Recent activity</p>
                         <h2 class="mt-3 font-serif text-4xl">The league is already turning pages.</h2>
                         <div class="mt-8 space-y-4">
-                            @foreach ([
-                                'A reader won a duel and earned fresh reputation points.',
-                                'A reader passed a quiz and unlocked the next challenge.',
-                                'A live show is starting soon and seats are filling fast.',
-                                'A verified reader published a lesson and topped the weekly board.'
-                            ] as $item)
-                                <div class="rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-4 text-sm text-[#f7e9ca]">{{ $item }}</div>
-                            @endforeach
+                            @forelse ($recentActivity as $item)
+                                <div class="rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-4 text-sm text-[#f7e9ca]">
+                                    <p class="font-semibold">{{ $item['label'] }}</p>
+                                    <p class="mt-1 text-[#d8c9ad]">{{ $item['detail'] }}</p>
+                                </div>
+                            @empty
+                                <div class="rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-4 text-sm text-[#d8c9ad]">Platform activity will appear here as readers join.</div>
+                            @endforelse
                         </div>
                     </div>
                     <div class="rounded-[28px] border border-[#3d261b] bg-[#2B170D] p-8">
-                        <h3 class="font-serif text-3xl text-[#F4EBD8]">Built for readers tired of the honor system.</h3>
-                        <p class="mt-4 text-sm leading-7 text-[#d8c9ad]">Readers must complete verified quizzes before competing, which keeps the duels fair and the prestige earned.</p>
+                        <h3 class="font-serif text-3xl text-[#F4EBD8]">A league with rules readers can see.</h3>
+                        <p class="mt-4 text-sm leading-7 text-[#d8c9ad]">Readers pass a quiz for a published book before challenging someone to a duel. Each activity is tied to the reading behind it.</p>
                         <div class="mt-8 rounded-[22px] border border-[#d8c9ad]/30 bg-[#FBF6EA] p-6 text-[#24150D]">
-                            <p class="font-serif text-xl">“The first time I passed a verification quiz, the whole tournament felt real.”</p>
-                            <div class="mt-5 flex items-center gap-3">
-                                <div class="flex h-10 w-10 items-center justify-center rounded-full bg-[#D8A83E] font-semibold text-[#1B0D05]">MR</div>
-                                <div>
-                                    <p class="font-semibold">Mina Rivera</p>
-                                    <p class="text-sm text-[#786A5D]">Week 3 Champion</p>
-                                </div>
-                            </div>
+                            <p class="font-serif text-xl">Read. Verify. Compete.</p>
+                            <p class="mt-3 text-sm leading-6 text-[#5e544d]">Book quizzes create a clear starting point for reader challenges and leaderboard results.</p>
                         </div>
                     </div>
                 </div>

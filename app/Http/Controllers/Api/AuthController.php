@@ -6,40 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Laravel\Socialite\Facades\Socialite;
-use OpenApi\Annotations as OA;
 
 class AuthController extends Controller
 {
-    /**
-     * @OA\Post(
-     *     path="/api/auth/register",
-     *     tags={"Auth"},
-     *     summary="Register a new mobile user",
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"name","email","password","password_confirmation"},
-     *             @OA\Property(property="name", type="string", example="Android User"),
-     *             @OA\Property(property="email", type="string", format="email", example="android@example.com"),
-     *             @OA\Property(property="password", type="string", format="password", example="password123"),
-     *             @OA\Property(property="password_confirmation", type="string", format="password", example="password123"),
-     *             @OA\Property(property="role", type="string", enum={"reader","author"}, example="reader")
-     *         )
-     *     ),
-     *     @OA\Response(response=201, description="Registration successful"),
-     *     @OA\Response(response=422, description="Validation error")
-     * )
-     */
     public function register(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)],
             'password' => ['required', 'confirmed', 'min:8'],
             'role' => ['nullable', 'string', 'in:reader,author'],
+            'device_name' => ['nullable', 'string', 'max:80'],
         ]);
 
         $user = User::create([
@@ -50,111 +31,52 @@ class AuthController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Registration successful',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-            'token' => $token,
-        ], 201);
+        return $this->tokenResponse($user, 'Registration successful', $validated['device_name'] ?? 'android-app', 201);
     }
 
-    /**
-     * @OA\Post(
-     *     path="/api/auth/login",
-     *     tags={"Auth"},
-     *     summary="Authenticate a mobile user",
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"email","password"},
-     *             @OA\Property(property="email", type="string", format="email", example="android@example.com"),
-     *             @OA\Property(property="password", type="string", format="password", example="password123")
-     *         )
-     *     ),
-     *     @OA\Response(response=200, description="Login successful"),
-     *     @OA\Response(response=401, description="Invalid credentials")
-     * )
-     */
     public function login(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'email' => ['required', 'email'],
-            'password' => ['required'],
+            'password' => ['required', 'string'],
+            'device_name' => ['nullable', 'string', 'max:80'],
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', Str::lower($validated['email']))->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials',
-            ], 401);
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-            'token' => $token,
-        ]);
+        return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
     }
 
-    /**
-     * @OA\Post(
-     *     path="/api/auth/google",
-     *     tags={"Auth"},
-     *     summary="Authenticate a mobile user with Google",
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"access_token"},
-     *             @OA\Property(property="access_token", type="string", example="google-access-token"),
-     *             @OA\Property(property="role", type="string", enum={"reader","author"}, example="reader")
-     *         )
-     *     ),
-     *     @OA\Response(response=200, description="Google login successful"),
-     *     @OA\Response(response=401, description="Unable to authenticate with Google")
-     * )
-     */
     public function google(Request $request)
     {
         $validated = $request->validate([
             'access_token' => ['required', 'string'],
             'role' => ['nullable', 'string', 'in:reader,author'],
+            'device_name' => ['nullable', 'string', 'max:80'],
         ]);
 
         try {
             $googleUser = Socialite::driver('google')->userFromToken($validated['access_token']);
-        } catch (\Throwable $exception) {
-            return response()->json([
-                'message' => 'Unable to authenticate with Google',
-            ], 401);
+        } catch (\Throwable) {
+            return response()->json(['message' => 'Unable to authenticate with Google'], 401);
         }
 
         $email = $googleUser->getEmail();
 
         if (! $email) {
-            return response()->json([
-                'message' => 'Google account did not provide an email address',
-            ], 422);
+            return response()->json(['message' => 'Google account did not provide an email address'], 422);
         }
 
+        $email = Str::lower($email);
         $user = User::where('email', $email)->first();
 
         if (! $user) {
-            $name = $googleUser->getName() ?: Str::before($email, '@');
-
             $user = User::create([
-                'name' => $name,
+                'name' => $googleUser->getName() ?: Str::before($email, '@'),
                 'email' => $email,
                 'password' => Hash::make(Str::random(40)),
                 'email_verified_at' => now(),
@@ -162,16 +84,65 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
+    }
 
+    public function forgotPassword(Request $request)
+    {
+        $validated = $request->validate(['email' => ['required', 'email']]);
+
+        Password::sendResetLink(['email' => Str::lower($validated['email'])]);
+
+        // Use the same response for known and unknown emails to avoid account discovery.
         return response()->json([
-            'message' => 'Login successful',
+            'message' => 'If an account exists for this email, a password reset link has been sent.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        $status = Password::reset(
+            [
+                'email' => Str::lower($validated['email']),
+                'password' => $validated['password'],
+                'password_confirmation' => $request->input('password_confirmation'),
+                'token' => $validated['token'],
+            ],
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+                $user->tokens()->delete();
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json(['message' => __($status)], 422);
+        }
+
+        return response()->json(['message' => 'Password reset successfully. Please sign in again.']);
+    }
+
+    private function tokenResponse(User $user, string $message, string $deviceName, int $status = 200)
+    {
+        return response()->json([
+            'message' => $message,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone_number' => $user->phone_number,
+                'role' => $user->role,
             ],
-            'token' => $token,
-        ]);
+            'token' => $user->createToken($deviceName)->plainTextToken,
+            'token_type' => 'Bearer',
+        ], $status);
     }
 }

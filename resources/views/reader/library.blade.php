@@ -40,9 +40,16 @@
                         <div class="mt-4 flex flex-wrap gap-2">
                             <a href="/reader/books/{{ $book->slug }}" class="inline-flex rounded-full border border-[#d8c9ad] px-4 py-2 text-sm font-semibold text-[#1B0D05]">Open book</a>
                             @if($book->pdf_path)
-                                <a href="{{ asset('storage/'.$book->pdf_path) }}" target="_blank" rel="noopener" class="inline-flex rounded-full bg-[#1B0D05] px-4 py-2 text-sm font-semibold text-[#FBF6EA]">Read PDF</a>
+                                <a href="{{ route('reader.books.content', $book->slug) }}" target="_blank" rel="noopener" class="inline-flex rounded-full bg-[#1B0D05] px-4 py-2 text-sm font-semibold text-[#FBF6EA]">Read PDF</a>
                             @endif
                         </div>
+                        @php($shelf = $shelves->get($book->id))
+                        <form action="{{ route('reader.books.shelf.update', $book->slug) }}" method="POST" class="mt-4 flex flex-wrap gap-2">@csrf
+                            <select name="status" class="min-w-0 flex-1 rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm" aria-label="Reading shelf status">
+                                @foreach (['want_to_read' => 'Want to Read', 'currently_reading' => 'Currently Reading', 'completed' => 'Completed', 'paused' => 'Paused', 'abandoned' => 'Abandoned'] as $value => $label)<option value="{{ $value }}" @selected($shelf?->status === $value)>{{ $label }}</option>@endforeach
+                            </select>
+                            <button class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm font-semibold text-[#FBF6EA]">{{ $shelf ? 'Update shelf' : 'Add to shelf' }}</button>
+                        </form>
                     </div>
                 </article>
             @endforeach

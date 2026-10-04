@@ -19,6 +19,7 @@
                 <a href="{{ route('reader.library') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Library</a>
                 <a href="{{ route('reader.goals') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Goals</a>
                 <a href="{{ route('reader.lessons') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Lessons</a>
+                <a href="{{ route('reader.recommendations') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Recommendations</a>
                 <a href="{{ route('reader.shows') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Shows</a>
                 <a href="{{ route('reader.duels') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Duels</a>
                 <a href="/logout" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
@@ -55,8 +56,12 @@
                                     <h3 class="mt-1 font-serif text-xl text-[#1B0D05]">{{ $book->title }}</h3>
                                     <p class="mt-1 text-sm text-[#786A5D]">{{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
                                     <div class="mt-3 flex items-center gap-2 text-sm">
-                                        <span class="rounded-full bg-[#1B0D05] px-3 py-1 text-[#FBF6EA]">Quiz ready</span>
-                                        @if($duelsUnlocked)
+                                        @if($book->quizzes_count > 0)
+                                            <span class="rounded-full bg-[#1B0D05] px-3 py-1 text-[#FBF6EA]">Quiz ready</span>
+                                        @else
+                                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-[#786A5D]">Quiz coming soon</span>
+                                        @endif
+                                        @if(in_array($book->id, $verifiedBookIds))
                                             <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel unlocked</span>
                                         @else
                                             <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel locked</span>
@@ -84,17 +89,24 @@
                         </div>
                     </div>
                     <p class="mt-3 text-sm text-[#786A5D]">
-                        Duels unlock after {{ $requiredQuizzesForDuels }} completed quizzes. You have completed {{ $completedQuizzesCount }}.
+                        You have verified {{ $verifiedBooksCount }} {{ \Illuminate\Support\Str::plural('book', $verifiedBooksCount) }} for book-specific duels.
                     </p>
                 </div>
 
                 <div class="rounded-[28px] border border-[#d8c9ad] bg-[#1B0D05] p-6 text-[#F4EBD8]">
+                    @php($activeGoal = $goals->firstWhere('status', 'active'))
+                    @php($goalPercent = $activeGoal && $activeGoal->target_value > 0 ? min(100, (int) floor(($activeGoal->current_value / $activeGoal->target_value) * 100)) : 0)
                     <p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Reading goal</p>
-                    <h2 class="mt-2 font-serif text-2xl">{{ $goals->first()?->title ?? 'Annual reading challenge' }}</h2>
-                    <p class="mt-4 text-sm leading-7 text-[#e5d7bf]">You’re pacing through the year with a steady streak and fresh momentum.</p>
+                    <h2 class="mt-2 font-serif text-2xl">{{ $activeGoal?->title ?? 'No active goal yet' }}</h2>
+                    @if ($activeGoal)
+                        <p class="mt-4 text-sm leading-7 text-[#e5d7bf]">{{ $activeGoal->current_value }} / {{ $activeGoal->target_value }} {{ $activeGoal->goal_type }} · {{ $goalPercent }}% complete</p>
+                    @else
+                        <p class="mt-4 text-sm leading-7 text-[#e5d7bf]">Create a reading goal and track your progress here.</p>
+                    @endif
                     <div class="mt-6 h-2 rounded-full bg-[#2B170D]">
-                        <div class="h-2 w-2/3 rounded-full bg-[#D8A83E]"></div>
+                        <div class="h-2 rounded-full bg-[#D8A83E]" style="width: {{ $goalPercent }}%"></div>
                     </div>
+                    <a href="{{ route('reader.goals') }}" class="mt-4 inline-block text-sm font-semibold text-[#D8A83E]">Manage goals</a>
                 </div>
 
                 <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6">
@@ -137,13 +149,16 @@
             <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6">
                 <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Weekly leaderboard</p>
                 <div class="mt-4 space-y-3">
-                    @foreach([['name'=>'Mina Rivera','points'=>'2,140'],['name'=>'Kai Brooks','points'=>'1,980'],['name'=>'Ayo Chen','points'=>'1,760']] as $player)
+                    @forelse($leaderboard as $player)
                         <div class="flex items-center justify-between rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-3">
-                            <span class="font-semibold text-[#1B0D05]">{{ $player['name'] }}</span>
+                            <span class="font-semibold text-[#1B0D05]">#{{ $player['rank'] }} {{ $player['name'] }}</span>
                             <span class="text-sm text-[#786A5D]">{{ $player['points'] }} pts</span>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-sm text-[#786A5D]">Pass a quiz to appear on this week’s board.</p>
+                    @endforelse
                 </div>
+                <a href="{{ route('leaderboard') }}?period=weekly" class="mt-4 inline-block text-sm font-semibold text-[#1B0D05]">View leaderboard</a>
             </div>
         </section>
     </main>

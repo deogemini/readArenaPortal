@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.3",
+  "openapi": "3.1.0",
   "info": {
     "title": "ReadArena Mobile API",
     "version": "1.0.0",
@@ -15,8 +15,18 @@
     { "name": "Auth", "description": "Authentication endpoints" },
     { "name": "Profile", "description": "Profile management" },
     { "name": "Books", "description": "Book listing and details" },
+    { "name": "Dashboard", "description": "Reader overview" },
     { "name": "Reading", "description": "Reading progress sync" },
-    { "name": "Quizzes", "description": "Quiz submission" }
+    { "name": "Shelf", "description": "Reader book shelf statuses" },
+    { "name": "Bookmarks", "description": "Personal page bookmarks and notes" },
+    { "name": "Goals", "description": "Reading goal management" },
+    { "name": "Lessons", "description": "Reader lessons" },
+    { "name": "Shows", "description": "Scheduled shows" },
+    { "name": "Duels", "description": "Verified reader duel invitations" },
+    { "name": "Leaderboard", "description": "Daily, weekly, monthly, and all-time quiz rankings" },
+    { "name": "Recommendations", "description": "Reader book recommendations" },
+    { "name": "Reviews", "description": "Reader ratings and moderated book reviews" },
+    { "name": "Quizzes", "description": "Quiz details and submission" }
   ],
   "paths": {
     "/api/auth/register": {
@@ -123,6 +133,30 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": ["Profile"],
+        "summary": "Update the signed-in user's name, email, or phone number",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "phone_number": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Profile updated" },
+          "422": { "description": "Validation error" }
+        }
       }
     },
     "/api/profile/photo": {
@@ -157,9 +191,26 @@
     "/api/books": {
       "get": {
         "tags": ["Books"],
-        "summary": "List all published books",
+        "summary": "Search and browse published books",
         "security": [
           { "bearerAuth": [] }
+        ],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Search title, description, ISBN, author, or publisher" },
+          { "name": "genre", "in": "query", "schema": { "type": "string" }, "description": "Genre slug or name" },
+          { "name": "author", "in": "query", "schema": { "type": "string" }, "description": "Filter by author name" },
+          { "name": "publisher", "in": "query", "schema": { "type": "string" }, "description": "Filter by publisher name" },
+          { "name": "language", "in": "query", "schema": { "type": "string" } },
+          { "name": "publication_year", "in": "query", "schema": { "type": "integer" } },
+          { "name": "min_pages", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "max_pages", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "reading_status", "in": "query", "schema": { "type": "string", "enum": ["want_to_read", "currently_reading", "completed", "paused", "abandoned"] }, "description": "Filter to books on the signed-in reader's shelf" },
+          { "name": "quiz_available", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "featured", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "min_rating", "in": "query", "schema": { "type": "number", "minimum": 1, "maximum": 5 }, "description": "Minimum average approved review rating" },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["newest", "title", "highest_rated", "popularity", "most_completed", "most_dueled"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }
         ],
         "responses": {
           "200": {
@@ -199,6 +250,13 @@
             }
           }
         }
+      }
+    },
+    "/api/books/{book}/content": {
+      "get": {
+        "tags": ["Books"], "summary": "Stream the published book PDF to an authenticated reader", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "PDF content streamed with private cache headers", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } } }, "401": { "description": "Unauthenticated" }, "404": { "description": "Book content not found" } }
       }
     },
     "/api/books/{book}/progress": {
@@ -272,6 +330,210 @@
           }
         }
       }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Request a password reset email",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } } } }
+        },
+        "responses": { "200": { "description": "A reset email is sent when the account exists" }, "422": { "description": "Validation error" } }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Reset a password using the emailed token",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["token", "email", "password", "password_confirmation"], "properties": { "token": { "type": "string" }, "email": { "type": "string", "format": "email" }, "password": { "type": "string", "format": "password" }, "password_confirmation": { "type": "string", "format": "password" } } } } }
+        },
+        "responses": { "200": { "description": "Password reset; existing API tokens are revoked" }, "422": { "description": "Invalid or expired token" } }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"], "summary": "Revoke the current device token", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Logged out successfully" }, "401": { "description": "Unauthenticated" } }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "List the signed-in reader's notifications",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "filter", "in": "query", "schema": { "type": "string", "enum": ["all", "unread", "read"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }
+        ],
+        "responses": { "200": { "description": "Notification page, pagination metadata, and unread count" } }
+      }
+    },
+    "/api/notifications/read-all": {
+      "patch": { "tags": ["Notifications"], "summary": "Mark all unread notifications as read", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Unread notifications marked as read" } } }
+    },
+    "/api/notifications/{notification}/read": {
+      "patch": { "tags": ["Notifications"], "summary": "Mark an owned notification as read", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "notification", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Notification marked as read" }, "404": { "description": "Notification not found for this reader" } } }
+    },
+    "/api/notifications/{notification}": {
+      "delete": { "tags": ["Notifications"], "summary": "Delete an owned notification", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "notification", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Notification deleted" }, "404": { "description": "Notification not found for this reader" } } }
+    },
+    "/api/notification-preferences": {
+      "get": { "tags": ["Notifications"], "summary": "Get in-app notification preferences", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Preference state for each supported notification type" } } },
+      "patch": { "tags": ["Notifications"], "summary": "Update in-app notification preferences", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["preferences"], "properties": { "preferences": { "type": "array", "items": { "type": "object", "required": ["type", "in_app_enabled"], "properties": { "type": { "type": "string", "enum": ["quiz_passed", "quiz_failed", "duel_invitation", "duel_response", "show_rsvp", "show_application_status", "goal_milestone"] }, "in_app_enabled": { "type": "boolean" } } } } } } } } }, "responses": { "200": { "description": "Notification preferences updated" }, "422": { "description": "Invalid preference type or value" } } }
+    },
+    "/api/dashboard": {
+      "get": {
+        "tags": ["Dashboard"], "summary": "Get reader statistics and dashboard sections", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Dashboard data including stats, progress, goals, shows, lessons, recommendations, and featured books" } }
+      }
+    },
+    "/api/reading/progress": {
+      "get": {
+        "tags": ["Reading"], "summary": "List the signed-in user's reading progress", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Progress records and associated published books" } }
+      }
+    },
+    "/api/shelf": {
+      "get": { "tags": ["Shelf"], "summary": "List the signed-in reader's book shelf", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Published books and their shelf statuses" } } }
+    },
+    "/api/books/{book}/shelf": {
+      "put": { "tags": ["Shelf"], "summary": "Add a book to the reader shelf or update its status", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["want_to_read", "currently_reading", "completed", "paused", "abandoned"] } } } } } }, "responses": { "200": { "description": "Shelf status saved" }, "422": { "description": "Invalid status or unpublished book" } } },
+      "delete": { "tags": ["Shelf"], "summary": "Remove a book from the reader shelf", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Book removed from shelf" } } }
+    },
+    "/api/bookmarks": {
+      "get": { "tags": ["Bookmarks"], "summary": "List the signed-in reader's bookmarks", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Bookmarks with book, page, and optional label" } } },
+      "post": { "tags": ["Bookmarks"], "summary": "Bookmark a page in a published book", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "page_number"], "properties": { "book_id": { "type": "integer" }, "page_number": { "type": "integer", "minimum": 1 }, "label": { "type": "string", "maxLength": 255 } } } } } }, "responses": { "201": { "description": "Bookmark saved" }, "422": { "description": "Invalid or duplicate page number" } } }
+    },
+    "/api/bookmarks/{bookmark}": {
+      "patch": { "tags": ["Bookmarks"], "summary": "Update a bookmark page or label", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "bookmark", "in": "path", "required": true, "schema": { "type": "integer" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["page_number"], "properties": { "page_number": { "type": "integer", "minimum": 1 }, "label": { "type": "string", "maxLength": 255 } } } } } }, "responses": { "200": { "description": "Bookmark updated" }, "403": { "description": "Bookmark belongs to another reader" } } },
+      "delete": { "tags": ["Bookmarks"], "summary": "Delete a bookmark owned by the signed-in reader", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "bookmark", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Bookmark deleted" }, "403": { "description": "Bookmark belongs to another reader" } } }
+    },
+    "/api/goals": {
+      "get": {
+        "tags": ["Goals"], "summary": "List the signed-in user's reading goals", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Reading goals" } }
+      },
+      "post": {
+        "tags": ["Goals"], "summary": "Create a reading goal", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["title", "goal_type", "target_value", "start_date", "end_date"], "properties": { "title": { "type": "string" }, "goal_type": { "type": "string", "enum": ["books", "pages"] }, "book_id": { "type": "integer", "description": "Required for pages goals" }, "target_value": { "type": "integer", "minimum": 1 }, "start_date": { "type": "string", "format": "date" }, "end_date": { "type": "string", "format": "date" } } } } } },
+        "responses": { "201": { "description": "Goal created" }, "422": { "description": "Validation error" } }
+      }
+    },
+    "/api/goals/{goal}": {
+      "patch": {
+        "tags": ["Goals"], "summary": "Update one of the signed-in user's reading goals", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "goal", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["title", "goal_type", "target_value", "start_date", "end_date"], "properties": { "title": { "type": "string" }, "goal_type": { "type": "string", "enum": ["books", "pages"] }, "book_id": { "type": "integer", "description": "Required for pages goals" }, "target_value": { "type": "integer", "minimum": 1 }, "start_date": { "type": "string", "format": "date" }, "end_date": { "type": "string", "format": "date" } } } } } },
+        "responses": { "200": { "description": "Goal updated" }, "404": { "description": "Goal not found" }, "422": { "description": "Validation error" } }
+      },
+      "delete": {
+        "tags": ["Goals"], "summary": "Delete one of the signed-in user's goals", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "goal", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Goal deleted" }, "404": { "description": "Goal not found" } }
+      }
+    },
+    "/api/lessons": {
+      "get": {
+        "tags": ["Lessons"], "summary": "List lessons associated with the signed-in user", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Lessons" } }
+      },
+      "post": {
+        "tags": ["Lessons"], "summary": "Create a private draft or verified published lesson", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "title", "content", "visibility", "status"], "properties": { "book_id": { "type": "integer" }, "title": { "type": "string" }, "content": { "type": "string", "maxLength": 20000 }, "visibility": { "type": "string", "enum": ["private", "followers", "public"] }, "status": { "type": "string", "enum": ["draft", "published"] } } } } } },
+        "responses": { "201": { "description": "Lesson created" }, "422": { "description": "Validation or verification error" } }
+      }
+    },
+    "/api/lessons/{lesson}": {
+      "patch": {
+        "tags": ["Lessons"], "summary": "Update a lesson owned by the signed-in reader", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "lesson", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "title", "content", "visibility", "status"], "properties": { "book_id": { "type": "integer" }, "title": { "type": "string" }, "content": { "type": "string" }, "visibility": { "type": "string", "enum": ["private", "followers", "public"] }, "status": { "type": "string", "enum": ["draft", "published"] } } } } } },
+        "responses": { "200": { "description": "Lesson updated" }, "403": { "description": "Lesson belongs to another reader" }, "422": { "description": "Validation or verification error" } }
+      },
+      "delete": { "tags": ["Lessons"], "summary": "Delete a lesson owned by the signed-in reader", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "lesson", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Lesson deleted" }, "403": { "description": "Lesson belongs to another reader" } } }
+    },
+    "/api/recommendations": {
+      "get": { "tags": ["Recommendations"], "summary": "List the signed-in reader's recommendations", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Reader recommendations" } } },
+      "post": {
+        "tags": ["Recommendations"], "summary": "Create a private draft or verified published recommendation", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "message", "rating", "visibility", "status"], "properties": { "book_id": { "type": "integer" }, "message": { "type": "string", "maxLength": 5000 }, "rating": { "type": "integer", "minimum": 1, "maximum": 5 }, "visibility": { "type": "string", "enum": ["private", "followers", "public"] }, "status": { "type": "string", "enum": ["draft", "published"] } } } } } },
+        "responses": { "201": { "description": "Recommendation created" }, "422": { "description": "Validation or verification error" } }
+      }
+    },
+    "/api/recommendations/{recommendation}": {
+      "patch": {
+        "tags": ["Recommendations"], "summary": "Update a recommendation owned by the signed-in reader", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "recommendation", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "message", "rating", "visibility", "status"], "properties": { "book_id": { "type": "integer" }, "message": { "type": "string" }, "rating": { "type": "integer", "minimum": 1, "maximum": 5 }, "visibility": { "type": "string", "enum": ["private", "followers", "public"] }, "status": { "type": "string", "enum": ["draft", "published"] } } } } } },
+        "responses": { "200": { "description": "Recommendation updated" }, "403": { "description": "Recommendation belongs to another reader" }, "422": { "description": "Validation or verification error" } }
+      },
+      "delete": { "tags": ["Recommendations"], "summary": "Delete a recommendation owned by the signed-in reader", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "recommendation", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Recommendation deleted" }, "403": { "description": "Recommendation belongs to another reader" } } }
+    },
+    "/api/books/{book}/reviews": {
+      "get": { "tags": ["Reviews"], "summary": "List approved reviews and average rating for a published book", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Published reviews and rating summary" }, "404": { "description": "Book not found" } } }
+    },
+    "/api/reviews": {
+      "get": { "tags": ["Reviews"], "summary": "List reviews written by the signed-in reader", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Reviews with pending, published, or rejected status" } } },
+      "post": { "tags": ["Reviews"], "summary": "Submit a book review for moderation", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "rating", "body"], "properties": { "book_id": { "type": "integer" }, "rating": { "type": "integer", "minimum": 1, "maximum": 5 }, "title": { "type": "string" }, "body": { "type": "string", "minLength": 10, "maxLength": 5000 } } } } } }, "responses": { "201": { "description": "Review submitted with pending moderation status" }, "422": { "description": "Validation error or duplicate review" } } }
+    },
+    "/api/reviews/{review}": {
+      "patch": { "tags": ["Reviews"], "summary": "Update an owned review and return it to moderation", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "review", "in": "path", "required": true, "schema": { "type": "integer" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["rating", "body"], "properties": { "rating": { "type": "integer", "minimum": 1, "maximum": 5 }, "title": { "type": "string" }, "body": { "type": "string", "minLength": 10, "maxLength": 5000 } } } } } }, "responses": { "200": { "description": "Review updated" }, "403": { "description": "Review belongs to another reader" } } },
+      "delete": { "tags": ["Reviews"], "summary": "Delete a review owned by the signed-in reader", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "review", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Review deleted" }, "403": { "description": "Review belongs to another reader" } } }
+    },
+    "/api/shows": {
+      "get": {
+        "tags": ["Shows"], "summary": "List upcoming scheduled shows", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Scheduled shows with optional book details" } }
+      }
+    },
+    "/api/shows/{show}/rsvp": {
+      "post": { "tags": ["Shows"], "summary": "RSVP to an upcoming show", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "show", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "201": { "description": "RSVP saved" }, "422": { "description": "Show is not open for registration" } } },
+      "delete": { "tags": ["Shows"], "summary": "Cancel the signed-in reader's show RSVP", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "show", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "RSVP cancelled" } } }
+    },
+    "/api/show-applications": {
+      "get": { "tags": ["Shows"], "summary": "List guest applications submitted by the signed-in reader", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Reader guest applications and review statuses" } } }
+    },
+    "/api/shows/{show}/applications": {
+      "post": {
+        "tags": ["Shows"], "summary": "Apply to join an upcoming show as a verified reader guest", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "show", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["motivation"], "properties": { "motivation": { "type": "string", "minLength": 20, "maxLength": 2000 } } } } } },
+        "responses": { "201": { "description": "Application submitted with verified quiz score" }, "422": { "description": "Pass the linked book quiz before applying" } }
+      }
+    },
+    "/api/show-applications/{application}": {
+      "delete": { "tags": ["Shows"], "summary": "Withdraw a pending guest application", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "application", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Application withdrawn" }, "404": { "description": "Application not found" } } }
+    },
+    "/api/duels": {
+      "get": {
+        "tags": ["Duels"], "summary": "List duels, verified books, and eligible opponents", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Duel records and books for which the reader passed a published quiz" } }
+      },
+      "post": {
+        "tags": ["Duels"], "summary": "Challenge another verified reader for a book", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["book_id", "opponent_id"], "properties": { "book_id": { "type": "integer" }, "opponent_id": { "type": "integer" } } } } } },
+        "responses": { "201": { "description": "Pending duel invitation created" }, "422": { "description": "Both readers must have passed a quiz for this published book" } }
+      }
+    },
+    "/api/duels/{duel}/respond": {
+      "patch": { "tags": ["Duels"], "summary": "Accept or reject a pending invitation as the invited reader", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "duel", "in": "path", "required": true, "schema": { "type": "integer" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["action"], "properties": { "action": { "type": "string", "enum": ["accept", "reject"] } } } } } }, "responses": { "200": { "description": "Invitation response saved" }, "403": { "description": "Only the invited reader can respond" } } }
+    },
+    "/api/duels/{duel}/cancel": {
+      "patch": { "tags": ["Duels"], "summary": "Cancel an invitation as its challenger", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "duel", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Invitation cancelled" }, "403": { "description": "Only the challenger can cancel" } } }
+    },
+    "/api/leaderboard": {
+      "get": { "tags": ["Leaderboard"], "summary": "List ranked readers for a time period", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "period", "in": "query", "schema": { "type": "string", "enum": ["daily", "weekly", "monthly", "all_time"], "default": "weekly" } }], "responses": { "200": { "description": "Quiz rankings. Each passing quiz contributes its best score once." } } }
+    },
+    "/api/quizzes/{quiz}": {
+      "get": {
+        "tags": ["Quizzes"], "summary": "Get a published quiz without exposing correct answers", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "quiz", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Quiz questions and choices, plus this reader's attempt count" }, "404": { "description": "Quiz not found" } }
+      }
     }
   },
   "components": {
@@ -290,7 +552,8 @@
           "email": { "type": "string", "format": "email", "example": "android@example.com" },
           "password": { "type": "string", "format": "password", "example": "password123" },
           "password_confirmation": { "type": "string", "format": "password", "example": "password123" },
-          "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" }
+          "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" },
+          "device_name": { "type": "string", "example": "Pixel 8" }
         }
       },
       "LoginRequest": {
@@ -298,7 +561,8 @@
         "required": ["email", "password"],
         "properties": {
           "email": { "type": "string", "format": "email", "example": "android@example.com" },
-          "password": { "type": "string", "format": "password", "example": "password123" }
+          "password": { "type": "string", "format": "password", "example": "password123" },
+          "device_name": { "type": "string", "example": "Pixel 8" }
         }
       },
       "GoogleLoginRequest": {
@@ -306,7 +570,8 @@
         "required": ["access_token"],
         "properties": {
           "access_token": { "type": "string", "example": "google-access-token" },
-          "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" }
+          "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" },
+          "device_name": { "type": "string", "example": "Pixel 8" }
         }
       },
       "UserSummary": {
@@ -314,7 +579,9 @@
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string" },
-          "email": { "type": "string" }
+          "email": { "type": "string" },
+          "phone_number": { "type": ["string", "null"] },
+          "role": { "type": "string" }
         }
       },
       "AuthRegisterResponse": {
@@ -322,7 +589,8 @@
         "properties": {
           "message": { "type": "string" },
           "user": { "$ref": "#/components/schemas/UserSummary" },
-          "token": { "type": "string" }
+          "token": { "type": "string" },
+          "token_type": { "type": "string", "example": "Bearer" }
         }
       },
       "AuthLoginResponse": {
@@ -330,7 +598,8 @@
         "properties": {
           "message": { "type": "string" },
           "user": { "$ref": "#/components/schemas/UserSummary" },
-          "token": { "type": "string" }
+          "token": { "type": "string" },
+          "token_type": { "type": "string", "example": "Bearer" }
         }
       },
       "ProfileData": {
@@ -339,6 +608,7 @@
           "id": { "type": "integer" },
           "name": { "type": "string" },
           "email": { "type": "string" },
+          "phone_number": { "type": ["string", "null"] },
           "role": { "type": "string" },
           "profile_photo_url": { "type": ["string", "null"] }
         }
@@ -379,10 +649,18 @@
           "slug": { "type": "string" },
           "description": { "type": "string" },
           "cover_image": { "type": ["string", "null"] },
+          "cover_image_url": { "type": ["string", "null"] },
           "authors": { "type": "array", "items": { "type": "string" } },
           "genres": { "type": "array", "items": { "type": "string" } },
           "publisher": { "type": ["string", "null"] },
           "publication_year": { "type": "integer" },
+          "page_count": { "type": ["integer", "null"] },
+          "language": { "type": ["string", "null"] },
+          "featured": { "type": "boolean" },
+          "average_rating": { "type": ["number", "null"] },
+          "reader_count": { "type": "integer" },
+          "completed_count": { "type": "integer" },
+          "duels_count": { "type": "integer" },
           "status": { "type": "string" }
         }
       },
@@ -392,7 +670,28 @@
           "data": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/BookSummary" }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "current_page": { "type": "integer" },
+              "last_page": { "type": "integer" },
+              "per_page": { "type": "integer" },
+              "total": { "type": "integer" }
+            }
           }
+        }
+      },
+      "ReaderNotification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "data": { "type": ["object", "null"] },
+          "read_at": { "type": ["string", "null"], "format": "date-time" },
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "QuizAnswerSchema": {
@@ -434,6 +733,7 @@
               "slug": { "type": "string" },
               "description": { "type": "string" },
               "cover_image": { "type": ["string", "null"] },
+              "cover_image_url": { "type": ["string", "null"] },
               "authors": { "type": "array", "items": { "type": "string" } },
               "genres": { "type": "array", "items": { "type": "string" } },
               "publisher": { "type": ["string", "null"] },
@@ -441,6 +741,8 @@
               "page_count": { "type": "integer" },
               "language": { "type": "string" },
               "isbn": { "type": "string" },
+              "pdf_url": { "type": ["string", "null"] },
+              "progress": { "type": ["object", "null"], "additionalProperties": true },
               "status": { "type": "string" },
               "quizzes": { "type": "array", "items": { "$ref": "#/components/schemas/QuizSchema" } }
             }
@@ -463,7 +765,8 @@
             "properties": {
               "book_id": { "type": "integer" },
               "current_page": { "type": "integer" },
-              "pages_read_total": { "type": "integer" }
+              "pages_read_total": { "type": "integer" },
+              "last_progress_at": { "type": ["string", "null"], "format": "date-time" }
             }
           }
         }
@@ -487,7 +790,9 @@
             "type": "object",
             "properties": {
               "score": { "type": "integer" },
-              "passed": { "type": "boolean" }
+              "passed": { "type": "boolean" },
+              "attempt_id": { "type": "integer" },
+              "attempts_used": { "type": "integer" }
             }
           }
         }

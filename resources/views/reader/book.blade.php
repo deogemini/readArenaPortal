@@ -63,6 +63,36 @@
         </div>
 
         <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
+            <p class="text-xs uppercase tracking-[0.25em] text-[#B98A2C]">Reader review</p>
+            <div class="mt-2 flex flex-wrap items-center justify-between gap-3"><h2 class="font-serif text-2xl text-[#1B0D05]">{{ $myReview ? 'Your review' : 'Review this book' }}</h2>@if ($myReview)<span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs uppercase">{{ $myReview->status }} · {{ $myReview->rating }}/5</span>@endif</div>
+            @php($reviewAction = $myReview ? route('reader.reviews.update', $myReview) : route('reader.books.reviews.store', $book->slug))
+            <form action="{{ $reviewAction }}" method="POST" class="mt-4 grid gap-3 sm:grid-cols-2">@csrf @if ($myReview) @method('PATCH') @endif
+                <select name="rating" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm" aria-label="Rating">
+                    @foreach (range(1, 5) as $rating)<option value="{{ $rating }}" @selected((int) ($myReview?->rating ?? 5) === $rating)>{{ $rating }} / 5</option>@endforeach
+                </select>
+                <input type="text" name="title" maxlength="255" value="{{ $myReview?->title }}" placeholder="Review title" class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm">
+                <textarea name="body" rows="4" minlength="10" maxlength="5000" required placeholder="Share what you thought about the book" class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm sm:col-span-2">{{ $myReview?->body }}</textarea>
+                <button class="w-fit rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">{{ $myReview ? 'Update review' : 'Submit for review' }}</button>
+            </form>
+            @if ($myReview)<form action="{{ route('reader.reviews.destroy', $myReview) }}" method="POST" class="mt-3">@csrf @method('DELETE')<button class="rounded-full border border-[#c17b6f] px-4 py-2 text-sm text-[#7a2e22]">Delete review</button></form>@endif
+        </section>
+
+        <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div><p class="text-xs uppercase tracking-[0.25em] text-[#B98A2C]">Your shelf</p><h2 class="mt-1 font-serif text-2xl text-[#1B0D05]">{{ $shelf ? ucfirst(str_replace('_', ' ', $shelf->status)) : 'Not on your shelf' }}</h2></div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <form action="{{ route('reader.books.shelf.update', $book->slug) }}" method="POST" class="flex flex-wrap gap-2">@csrf
+                        <select name="status" class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm" aria-label="Reading status">
+                            @foreach (['want_to_read' => 'Want to Read', 'currently_reading' => 'Currently Reading', 'completed' => 'Completed', 'paused' => 'Paused', 'abandoned' => 'Abandoned'] as $value => $label)<option value="{{ $value }}" @selected($shelf?->status === $value)>{{ $label }}</option>@endforeach
+                        </select>
+                        <button class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm font-semibold text-[#FBF6EA]">{{ $shelf ? 'Update shelf' : 'Add to shelf' }}</button>
+                    </form>
+                    @if ($shelf)<form action="{{ route('reader.books.shelf.destroy', $book->slug) }}" method="POST">@csrf @method('DELETE')<button class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Remove</button></form>@endif
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
             <h2 class="font-serif text-3xl text-[#1B0D05]">Read Book</h2>
 
             @if ($book->pdf_path)
@@ -70,7 +100,7 @@
                 @php($resumePage = max(1, (int) $progress->last_page_read))
                 <div class="mt-4 overflow-hidden rounded-[18px] border border-[#d8c9ad]">
                     <iframe
-                        src="{{ asset('storage/'.$book->pdf_path).'#page='.$resumePage }}"
+                        src="{{ route('reader.books.content', $book->slug).'#page='.$resumePage }}"
                         class="h-[70vh] w-full bg-white"
                         title="{{ $book->title }} PDF"
                     ></iframe>
@@ -120,6 +150,33 @@
                         No pages goal for this book yet. <a href="{{ route('reader.goals') }}" class="font-semibold text-[#1B0D05] underline">Create one in Goals</a>.
                     </div>
                 @endforelse
+            </div>
+
+            <div class="mt-8 border-t border-[#d8c9ad] pt-6">
+                <h3 class="font-serif text-2xl text-[#1B0D05]">Page bookmarks</h3>
+                <form action="{{ route('reader.books.bookmarks.store', $book->slug) }}" method="POST" class="mt-4 grid gap-3 sm:grid-cols-[10rem_1fr_auto]">@csrf
+                    <input type="number" name="page_number" min="1" @if($book->page_count) max="{{ $book->page_count }}" @endif value="{{ max(1, (int) $progress->last_page_read) }}" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm" aria-label="Bookmark page">
+                    <input type="text" name="label" maxlength="255" placeholder="Optional note, e.g. key passage" class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-3 py-2 text-sm">
+                    <button class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm font-semibold text-[#FBF6EA]">Save bookmark</button>
+                </form>
+                <div class="mt-4 space-y-3">
+                    @forelse ($bookmarks as $bookmark)
+                        <article class="rounded-[16px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
+                            <a href="{{ route('reader.books.content', $book->slug) }}#page={{ $bookmark->page_number }}" class="font-semibold text-[#1B0D05] underline">Page {{ $bookmark->page_number }}</a>
+                            <p class="mt-1 text-sm text-[#786A5D]">{{ $bookmark->label ?: 'Saved page' }}</p>
+                            <div class="mt-3 flex flex-wrap gap-3">
+                                <form action="{{ route('reader.bookmarks.update', $bookmark) }}" method="POST" class="flex flex-wrap gap-2">@csrf @method('PATCH')
+                                    <input type="number" name="page_number" min="1" @if($book->page_count) max="{{ $book->page_count }}" @endif value="{{ $bookmark->page_number }}" required class="w-24 rounded-lg border border-[#d8c9ad] bg-[#FBF6EA] px-3 py-1.5 text-xs" aria-label="Updated page">
+                                    <input type="text" name="label" maxlength="255" value="{{ $bookmark->label }}" placeholder="Label" class="min-w-32 rounded-lg border border-[#d8c9ad] bg-[#FBF6EA] px-3 py-1.5 text-xs">
+                                    <button class="rounded-full border border-[#d8c9ad] px-3 py-1.5 text-xs">Update</button>
+                                </form>
+                                <form action="{{ route('reader.bookmarks.destroy', $bookmark) }}" method="POST">@csrf @method('DELETE')<button class="rounded-full border border-[#c17b6f] px-3 py-1.5 text-xs text-[#7a2e22]">Remove</button></form>
+                            </div>
+                        </article>
+                    @empty
+                        <p class="text-sm text-[#786A5D]">No bookmarks saved for this book.</p>
+                    @endforelse
+                </div>
             </div>
         </section>
 
