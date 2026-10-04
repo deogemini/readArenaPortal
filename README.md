@@ -15,6 +15,22 @@ Requirements: PHP 8.3+, Composer, Node.js, and a database supported by Laravel.
 
 For the Android emulator, use `http://10.0.2.2:8000/api` as the API base URL when the Laravel server runs on the development computer. A physical phone needs the computer's reachable LAN address, and a deployed app needs its HTTPS domain. Configure `APP_URL` to the externally reachable site URL so image and PDF links point back to the server.
 
+### Large book uploads on Ubuntu/Nginx
+
+Book PDFs can be up to 100 MiB by default (`BOOK_PDF_MAX_KB=102400`). `public/.user.ini` raises PHP-FPM's per-directory upload and POST limits to 100M and 110M. If this server setting is disabled or overridden by the PHP-FPM pool, set `upload_max_filesize=100M`, `post_max_size=110M`, and `memory_limit=256M` in `/etc/php/8.3/fpm/php.ini`.
+
+Nginx must also accept a request slightly larger than the allowed file. Add `client_max_body_size 120m;` inside this site's `server { ... }` block, then apply the configuration:
+
+```bash
+sudo nginx -t
+sudo systemctl restart php8.3-fpm
+sudo systemctl reload nginx
+cd /var/www/html/readArenaPortal
+php artisan config:clear
+```
+
+The application returns a readable HTTP 413 page if the effective server limit is still too low. If a request is rejected by Nginx before it reaches PHP, Laravel cannot render that page; the Nginx body-size directive must be updated.
+
 ## API reference
 
 Open the interactive Swagger UI at `/api/documentation`. The OpenAPI JSON is at `/docs/api-docs.json`.

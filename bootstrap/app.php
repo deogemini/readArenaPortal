@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -23,4 +24,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(function (PostTooLargeException $exception, Request $request) {
+            $message = 'This upload exceeds the server request limit. Book PDFs may be up to '.(int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024).'MB. If your file is smaller, the PHP or web server upload limit needs to be raised.';
+
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => $message], 413);
+            }
+
+            return response()->view('errors.413', ['message' => $message], 413);
+        });
     })->create();

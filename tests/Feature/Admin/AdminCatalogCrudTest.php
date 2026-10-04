@@ -59,6 +59,33 @@ test('administrators can create update and delete books and their uploaded PDF',
     Storage::disk('local')->assertMissing($pdfPath);
 });
 
+test('administrators can upload a PDF larger than the previous 3MB limit', function () {
+    $admin = User::factory()->admin()->create();
+    Storage::fake('local');
+
+    $this->actingAs($admin)->post(route('admin.books.store'), [
+        'title' => 'A Larger Novel',
+        'author_name' => 'A. Writer',
+        'genre_name' => 'Literary Fiction',
+        'status' => 'draft',
+        'pdf_file' => UploadedFile::fake()->create('larger-novel.pdf', 4096, 'application/pdf'),
+    ])->assertRedirect(route('admin.books'));
+
+    $book = Book::where('title', 'A Larger Novel')->firstOrFail();
+    Storage::disk('local')->assertExists($book->pdf_path);
+});
+
+test('oversized requests receive a readable 413 response instead of the exception debug page', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->withServerVariables(['CONTENT_LENGTH' => '9999999999'])
+        ->actingAs($admin)
+        ->post(route('admin.books.store'), [])
+        ->assertStatus(413)
+        ->assertSee('This upload is too large.')
+        ->assertSee('Book PDFs may be up to 100MB.');
+});
+
 test('administrators can create update and delete quizzes and questions', function () {
     $admin = User::factory()->admin()->create();
     $book = adminCatalogBook('quiz-crud-book');

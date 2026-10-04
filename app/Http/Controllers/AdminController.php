@@ -165,6 +165,9 @@ class AdminController extends Controller
 
     public function storeBook(Request $request): RedirectResponse
     {
+        $maximumPdfSizeKb = (int) config('uploads.book_pdf_max_kb', 102400);
+        $maximumPdfSizeMb = (int) ceil($maximumPdfSizeKb / 1024);
+
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -176,13 +179,13 @@ class AdminController extends Controller
             'language' => ['nullable', 'string', 'max:10'],
             'isbn' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'url'],
-            'pdf_file' => ['required', 'file', 'mimes:pdf', 'max:3072'],
+            'pdf_file' => ['required', 'file', 'mimes:pdf', 'max:'.$maximumPdfSizeKb],
             'status' => ['nullable', 'in:draft,published'],
             'featured' => ['nullable', 'boolean'],
         ], [
-            'pdf_file.required' => 'PDF is required. If you selected a file, it may be larger than the current 3MB upload limit.',
+            'pdf_file.required' => 'PDF is required. If you selected a file, it may exceed the upload limit.',
             'pdf_file.mimes' => 'Only PDF files are allowed.',
-            'pdf_file.max' => 'PDF must be 3MB or smaller with current server settings.',
+            'pdf_file.max' => 'PDF must be '.$maximumPdfSizeMb.'MB or smaller.',
         ]);
 
         $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'local');
@@ -238,6 +241,9 @@ class AdminController extends Controller
 
     public function updateBook(Request $request, Book $book): RedirectResponse
     {
+        $maximumPdfSizeKb = (int) config('uploads.book_pdf_max_kb', 102400);
+        $maximumPdfSizeMb = (int) ceil($maximumPdfSizeKb / 1024);
+
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -249,9 +255,11 @@ class AdminController extends Controller
             'language' => ['nullable', 'string', 'max:10'],
             'isbn' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'url'],
-            'pdf_file' => ['nullable', 'file', 'mimes:pdf', 'max:3072'],
+            'pdf_file' => ['nullable', 'file', 'mimes:pdf', 'max:'.$maximumPdfSizeKb],
             'status' => ['required', 'in:draft,published'],
             'featured' => ['nullable', 'boolean'],
+        ], [
+            'pdf_file.max' => 'PDF must be '.$maximumPdfSizeMb.'MB or smaller.',
         ]);
 
         $publisher = Publisher::firstOrCreate(['name' => $payload['publisher_name'] ?: 'Independent Press']);

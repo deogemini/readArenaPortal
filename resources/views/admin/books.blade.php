@@ -69,7 +69,7 @@
                         <input name="cover_image" value="{{ old('cover_image') }}" placeholder="Cover image URL" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 md:col-span-2">
                         <div class="md:col-span-2">
                             <input type="file" name="pdf_file" accept="application/pdf" required class="w-full rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
-                            <p class="mt-1 text-xs text-[#d8c9ad]">PDF required. Current maximum upload size is 3MB.</p>
+                            <p class="mt-1 text-xs text-[#d8c9ad]">PDF required. Maximum file size: {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB.</p>
                         </div>
                         <textarea name="description" placeholder="Description" rows="4" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 md:col-span-2">{{ old('description') }}</textarea>
                         <select name="status" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
@@ -130,6 +130,7 @@
                                             <input name="cover_image" value="{{ $book->cover_image }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Cover URL">
                                             <textarea name="description" rows="3" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Description">{{ $book->description }}</textarea>
                                             <input type="file" name="pdf_file" accept="application/pdf" class="w-full rounded-lg bg-[#1B0D05] px-3 py-2 text-xs">
+                                            <p class="text-xs text-[#d8c9ad]">Optional PDF replacement, up to {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB.</p>
                                             <select name="status" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs"><option value="draft" @selected($book->status === 'draft')>Draft</option><option value="published" @selected($book->status === 'published')>Published</option></select>
                                             <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="featured" value="1" @checked($book->featured)> Featured</label>
                                             <button class="rounded-full bg-[#D8A83E] px-3 py-2 text-xs font-semibold text-[#1B0D05]">Save book</button>
