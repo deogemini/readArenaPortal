@@ -7,10 +7,11 @@ use App\Models\Book;
 use App\Models\Genre;
 use App\Models\Publisher;
 use App\Models\Quiz;
-use App\Models\QuizAnswer;
 use App\Models\QuizQuestion;
+use App\Services\QuizAnswerOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -78,50 +79,34 @@ class AuthorController extends Controller
             'book_id' => ['required', 'exists:books,id'],
             'title' => ['required', 'string', 'max:255'],
             'question' => ['required', 'string'],
-            'correct_answer' => ['required', 'string', 'max:255'],
-            'wrong_answer_1' => ['required', 'string', 'max:255'],
-            'wrong_answer_2' => ['required', 'string', 'max:255'],
-            'wrong_answer_3' => ['required', 'string', 'max:255'],
         ]);
+        $answerPayload = QuizAnswerOptions::validate(
+            $request->input('answer_options'),
+            $request->input('correct_options'),
+            1000,
+        );
 
-        $quiz = Quiz::create([
-            'book_id' => $payload['book_id'],
-            'title' => $payload['title'],
-            'instructions' => 'Author generated assessment.',
-            'status' => 'draft',
-            'pass_mark' => 70,
-            'attempt_limit' => 3,
-            'duration_minutes' => 10,
-        ]);
+        DB::transaction(function () use ($payload, $answerPayload): void {
+            $quiz = Quiz::create([
+                'book_id' => $payload['book_id'],
+                'title' => $payload['title'],
+                'instructions' => 'Author generated assessment.',
+                'status' => 'draft',
+                'pass_mark' => 70,
+                'attempt_limit' => 3,
+                'duration_minutes' => 10,
+            ]);
 
-        $question = QuizQuestion::create([
-            'quiz_id' => $quiz->id,
-            'prompt' => $payload['question'],
-            'question_type' => 'multiple_choice',
-            'points' => 10,
-            'sort_order' => 1,
-        ]);
+            $question = QuizQuestion::create([
+                'quiz_id' => $quiz->id,
+                'prompt' => $payload['question'],
+                'question_type' => 'multiple_choice',
+                'points' => 10,
+                'sort_order' => 1,
+            ]);
 
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['correct_answer'],
-            'is_correct' => true,
-        ]);
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['wrong_answer_1'],
-            'is_correct' => false,
-        ]);
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['wrong_answer_2'],
-            'is_correct' => false,
-        ]);
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['wrong_answer_3'],
-            'is_correct' => false,
-        ]);
+            QuizAnswerOptions::sync($question, $answerPayload);
+        });
 
         return redirect()->route('author.dashboard')->with('status', 'Quiz draft with answers created.');
     }

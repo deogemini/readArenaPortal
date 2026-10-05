@@ -8,7 +8,6 @@ use App\Models\BookReview;
 use App\Models\Lesson;
 use App\Models\LiveShow;
 use App\Models\Quiz;
-use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
 use App\Models\ReadingGoal;
 use App\Models\ReadingProgress;
@@ -23,6 +22,7 @@ use App\Services\BookContentService;
 use App\Services\ReaderShelfService;
 use App\Services\BookmarkService;
 use App\Services\BookReviewService;
+use App\Services\QuizAnswerSelection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -317,24 +317,15 @@ class ReaderController extends Controller
 
         $validated = $request->validate([
             'answers' => ['required', 'array'],
-            'answers.*' => ['required', 'integer', 'exists:quiz_answers,id'],
         ]);
-
-        $selectedAnswerIds = collect($validated['answers'])->map(fn ($value) => (int) $value);
-        $answerMap = QuizAnswer::query()
-            ->whereIn('id', $selectedAnswerIds)
-            ->get()
-            ->keyBy('id');
+        $correctByQuestion = QuizAnswerSelection::scoreMap($validated['answers'], $quiz->questions);
 
         $score = 0;
         $totalPoints = 0;
 
         foreach ($quiz->questions as $question) {
             $totalPoints += (int) $question->points;
-            $answerId = (int) ($validated['answers'][$question->id] ?? 0);
-            $answer = $answerMap->get($answerId);
-
-            if ($answer && (int) $answer->quiz_question_id === (int) $question->id && $answer->is_correct) {
+            if ($correctByQuestion[(int) $question->id] ?? false) {
                 $score += (int) $question->points;
             }
         }

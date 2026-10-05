@@ -107,11 +107,19 @@
                                 <input type="number" name="points" value="{{ old('points', 10) }}" placeholder="Points" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                                 <input type="number" name="sort_order" value="{{ old('sort_order') }}" placeholder="Sort order (optional)" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                             </div>
-                            <p class="text-xs text-[#d8c9ad]">Enter one correct answer and three different incorrect answers.</p>
-                            <input name="correct_answer" value="{{ old('correct_answer') }}" placeholder="Correct answer" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                            <input name="wrong_answer_1" value="{{ old('wrong_answer_1') }}" placeholder="Wrong answer 1" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                            <input name="wrong_answer_2" value="{{ old('wrong_answer_2') }}" placeholder="Wrong answer 2" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                            <input name="wrong_answer_3" value="{{ old('wrong_answer_3') }}" placeholder="Wrong answer 3" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                            <p class="text-xs text-[#d8c9ad]">Enter four different choices and mark every correct answer. Readers must select all correct choices.</p>
+                            @php
+                                $oldCorrectOptions = old('correct_options');
+                                $selectedCorrectOptions = is_array($oldCorrectOptions)
+                                    ? array_map('strval', $oldCorrectOptions)
+                                    : (is_array(old('answer_options')) ? [] : ['0']);
+                            @endphp
+                            @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
+                                <div class="grid gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                                    <input name="answer_options[{{ $optionIndex }}][body]" value="{{ old('answer_options.'.$optionIndex.'.body') }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="rounded-lg border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                                    <label class="flex items-center gap-2 text-sm text-[#d8c9ad]"><input type="checkbox" name="correct_options[]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedCorrectOptions, true))> Correct answer</label>
+                                </div>
+                            @endfor
                             <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Add question</button>
                         </form>
                     </section>
@@ -173,8 +181,13 @@
 
                                 @foreach($quiz->questions->sortBy('sort_order') as $question)
                                     @php
-                                        $correctAnswer = $question->answers->firstWhere('is_correct', true);
-                                        $wrongAnswers = $question->answers->where('is_correct', false)->values();
+                                        $questionAnswers = $question->answers->sortBy('id')->values();
+                                        $oldQuestionOptions = old('question_answer_options.'.$question->id, []);
+                                        $savedCorrectOptions = $questionAnswers->filter(fn ($answer) => $answer->is_correct)->keys()->map(fn ($index) => (string) $index)->all();
+                                        $oldQuestionCorrectOptions = old('question_correct_options.'.$question->id);
+                                        $selectedQuestionCorrectOptions = is_array($oldQuestionCorrectOptions)
+                                            ? array_map('strval', $oldQuestionCorrectOptions)
+                                            : (is_array($oldQuestionOptions) && $oldQuestionOptions !== [] ? [] : $savedCorrectOptions);
                                     @endphp
                                     <tr class="border-t border-[#3d261b]/60 bg-[#130804]">
                                         <td colspan="9" class="px-4 py-4">
@@ -191,10 +204,13 @@
                                                 <input name="prompt" value="{{ $question->prompt }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2 md:col-span-2" required>
                                                 <input type="number" name="points" value="{{ $question->points }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" min="1" required>
                                                 <input type="number" name="sort_order" value="{{ $question->sort_order }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" min="1" required>
-                                                <input name="correct_answer" value="{{ $correctAnswer?->body }}" placeholder="Correct answer" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
-                                                <input name="wrong_answer_1" value="{{ $wrongAnswers->get(0)?->body }}" placeholder="Wrong answer 1" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
-                                                <input name="wrong_answer_2" value="{{ $wrongAnswers->get(1)?->body }}" placeholder="Wrong answer 2" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
-                                                <input name="wrong_answer_3" value="{{ $wrongAnswers->get(2)?->body }}" placeholder="Wrong answer 3" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
+                                                <p class="text-xs text-[#d8c9ad] md:col-span-2">Mark one or more choices as correct.</p>
+                                                @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
+                                                    <div class="grid gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] p-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                                                        <input name="question_answer_options[{{ $question->id }}][{{ $optionIndex }}][body]" value="{{ data_get($oldQuestionOptions, $optionIndex.'.body', $questionAnswers->get($optionIndex)?->body) }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="rounded-lg bg-[#1B0D05] px-3 py-2" required>
+                                                        <label class="flex items-center gap-2 text-sm text-[#d8c9ad]"><input type="checkbox" name="question_correct_options[{{ $question->id }}][]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedQuestionCorrectOptions, true))> Correct</label>
+                                                    </div>
+                                                @endfor
                                                 <div class="md:col-span-2">
                                                     <button class="rounded-full bg-[#D8A83E] px-4 py-2 text-xs font-semibold text-[#1B0D05]">Save question changes</button>
                                                 </div>

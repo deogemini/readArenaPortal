@@ -190,6 +190,16 @@ test('book details and quiz submission can be handled through the api', function
         'body' => '4',
         'is_correct' => true,
     ]);
+    QuizAnswer::create([
+        'quiz_question_id' => $question->id,
+        'body' => 'Two plus two',
+        'is_correct' => true,
+    ]);
+    QuizAnswer::create([
+        'quiz_question_id' => $question->id,
+        'body' => '5',
+        'is_correct' => false,
+    ]);
 
     $bookResponse = $this->actingAs($user, 'sanctum')->getJson('/api/books/' . $book->id);
     $bookResponse->assertStatus(200)->assertJsonPath('data.title', 'Quiz Book');
@@ -199,10 +209,19 @@ test('book details and quiz submission can be handled through the api', function
     ]);
     $progressResponse->assertStatus(200)->assertJsonPath('data.current_page', 25);
 
-    $quizResponse = $this->actingAs($user, 'sanctum')->postJson('/api/quizzes/' . $quiz->id . '/submit', [
-        'answers' => [$question->id => $question->answers()->first()->id],
+    $quizDataResponse = $this->actingAs($user, 'sanctum')->getJson('/api/quizzes/'.$quiz->id);
+    $quizDataResponse->assertOk()->assertJsonPath('data.questions.0.allow_multiple_selection', true);
+
+    $answers = $question->answers()->orderBy('id')->get();
+    $quizResponse = $this->actingAs($user, 'sanctum')->postJson('/api/quizzes/'.$quiz->id.'/submit', [
+        'answers' => [$question->id => [$answers[0]->id, $answers[1]->id]],
     ]);
     $quizResponse->assertStatus(200)->assertJsonPath('data.score', 100);
+
+    $partialAnswerResponse = $this->actingAs($user, 'sanctum')->postJson('/api/quizzes/'.$quiz->id.'/submit', [
+        'answers' => [$question->id => [$answers[0]->id]],
+    ]);
+    $partialAnswerResponse->assertStatus(200)->assertJsonPath('data.score', 0);
     $this->assertDatabaseHas('reader_notifications', [
         'user_id' => $user->id,
         'type' => 'quiz_passed',

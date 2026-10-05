@@ -13,7 +13,6 @@ use App\Models\LiveShow;
 use App\Models\PlatformSetting;
 use App\Models\Publisher;
 use App\Models\Quiz;
-use App\Models\QuizAnswer;
 use App\Models\QuizAttempt;
 use App\Models\QuizQuestion;
 use App\Models\Recommendation;
@@ -21,11 +20,13 @@ use App\Models\SmsGatewaySetting;
 use App\Models\ShowApplication;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
+use App\Services\QuizAnswerOptions;
 use App\Services\ShowParticipationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -461,55 +462,23 @@ class AdminController extends Controller
             'prompt' => ['required', 'string'],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
             'sort_order' => ['required', 'integer', 'min:1'],
-            'correct_answer' => ['required', 'string', 'max:1000'],
-            'wrong_answer_1' => ['required', 'string', 'max:1000', 'different:correct_answer'],
-            'wrong_answer_2' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1'],
-            'wrong_answer_3' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1', 'different:wrong_answer_2'],
         ]);
+        $answerPayload = QuizAnswerOptions::validate(
+            $request->input('question_answer_options.'.$question->id),
+            $request->input('question_correct_options.'.$question->id),
+        );
 
-        $question->update([
-            'prompt' => $payload['prompt'],
-            'points' => (int) $payload['points'],
-            'sort_order' => (int) $payload['sort_order'],
-            'last_edited_by' => auth()->id(),
-            'last_edited_at' => now(),
-        ]);
-
-        $question->load('answers');
-
-        $correctAnswer = $question->answers->firstWhere('is_correct', true)
-            ?? QuizAnswer::create([
-                'quiz_question_id' => $question->id,
-                'body' => $payload['correct_answer'],
-                'is_correct' => true,
+        DB::transaction(function () use ($question, $payload, $answerPayload): void {
+            $question->update([
+                'prompt' => $payload['prompt'],
+                'points' => (int) $payload['points'],
+                'sort_order' => (int) $payload['sort_order'],
+                'last_edited_by' => auth()->id(),
+                'last_edited_at' => now(),
             ]);
-        $correctAnswer->update(['body' => $payload['correct_answer'], 'is_correct' => true]);
 
-        $wrongAnswers = $question->answers->where('is_correct', false)->values();
-
-        $wrongOne = $wrongAnswers->get(0)
-            ?? QuizAnswer::create([
-                'quiz_question_id' => $question->id,
-                'body' => $payload['wrong_answer_1'],
-                'is_correct' => false,
-            ]);
-        $wrongOne->update(['body' => $payload['wrong_answer_1'], 'is_correct' => false]);
-
-        $wrongTwo = $wrongAnswers->get(1)
-            ?? QuizAnswer::create([
-                'quiz_question_id' => $question->id,
-                'body' => $payload['wrong_answer_2'],
-                'is_correct' => false,
-            ]);
-        $wrongTwo->update(['body' => $payload['wrong_answer_2'], 'is_correct' => false]);
-
-        $wrongThree = $wrongAnswers->get(2)
-            ?? QuizAnswer::create([
-                'quiz_question_id' => $question->id,
-                'body' => $payload['wrong_answer_3'],
-                'is_correct' => false,
-            ]);
-        $wrongThree->update(['body' => $payload['wrong_answer_3'], 'is_correct' => false]);
+            QuizAnswerOptions::sync($question, $answerPayload);
+        });
 
         return redirect()->route('admin.quizzes')->with('status', 'Question updated successfully.');
     }
@@ -571,40 +540,23 @@ class AdminController extends Controller
             'prompt' => ['required', 'string'],
             'points' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sort_order' => ['nullable', 'integer', 'min:1'],
-            'correct_answer' => ['required', 'string', 'max:1000'],
-            'wrong_answer_1' => ['required', 'string', 'max:1000', 'different:correct_answer'],
-            'wrong_answer_2' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1'],
-            'wrong_answer_3' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1', 'different:wrong_answer_2'],
         ]);
+        $answerPayload = QuizAnswerOptions::validate(
+            $request->input('answer_options'),
+            $request->input('correct_options'),
+        );
 
-        $question = QuizQuestion::create([
-            'quiz_id' => $quiz->id,
-            'prompt' => $payload['prompt'],
-            'question_type' => 'multiple_choice',
-            'points' => $payload['points'] ?? 10,
-            'sort_order' => $payload['sort_order'] ?? ((int) $quiz->questions()->max('sort_order') + 1 ?: 1),
-        ]);
+        DB::transaction(function () use ($quiz, $payload, $answerPayload): void {
+            $question = QuizQuestion::create([
+                'quiz_id' => $quiz->id,
+                'prompt' => $payload['prompt'],
+                'question_type' => 'multiple_choice',
+                'points' => $payload['points'] ?? 10,
+                'sort_order' => $payload['sort_order'] ?? ((int) $quiz->questions()->max('sort_order') + 1 ?: 1),
+            ]);
 
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['correct_answer'],
-            'is_correct' => true,
-        ]);
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['wrong_answer_1'],
-            'is_correct' => false,
-        ]);
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['wrong_answer_2'],
-            'is_correct' => false,
-        ]);
-        QuizAnswer::create([
-            'quiz_question_id' => $question->id,
-            'body' => $payload['wrong_answer_3'],
-            'is_correct' => false,
-        ]);
+            QuizAnswerOptions::sync($question, $answerPayload);
+        });
 
         return redirect()->route('admin.quizzes')->with('status', 'Question added to quiz.');
     }

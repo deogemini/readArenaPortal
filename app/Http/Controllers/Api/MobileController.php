@@ -29,6 +29,7 @@ use App\Services\ReaderShelfService;
 use App\Services\BookmarkService;
 use App\Services\BookReviewService;
 use App\Services\ReaderNotificationService;
+use App\Services\QuizAnswerSelection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -984,26 +985,12 @@ class MobileController extends Controller
 
         $validated = $request->validate([
             'answers' => ['required', 'array'],
-            'answers.*' => ['required', 'integer', 'exists:quiz_answers,id'],
         ]);
 
         $questionMap = $quiz->questions->keyBy('id');
-        $answersByQuestion = [];
+        $correctByQuestion = QuizAnswerSelection::scoreMap($validated['answers'], $quiz->questions);
 
-        foreach ($validated['answers'] as $questionId => $answerId) {
-            $question = $questionMap->get((int) $questionId);
-            $answer = $question?->answers->firstWhere('id', (int) $answerId);
-
-            if (! $question || ! $answer) {
-                throw ValidationException::withMessages([
-                    'answers.'.$questionId => 'The selected answer does not belong to this quiz question.',
-                ]);
-            }
-
-            $answersByQuestion[(int) $questionId] = $answer;
-        }
-
-        $result = DB::transaction(function () use ($quiz, $request, $questionMap, $answersByQuestion) {
+        $result = DB::transaction(function () use ($quiz, $request, $questionMap, $correctByQuestion) {
             $lockedQuiz = Quiz::query()->whereKey($quiz->id)->lockForUpdate()->firstOrFail();
             $attemptsCount = QuizAttempt::query()
                 ->where('quiz_id', $lockedQuiz->id)
@@ -1019,7 +1006,7 @@ class MobileController extends Controller
 
             foreach ($questionMap as $questionId => $question) {
                 $totalPoints += (int) $question->points;
-                if (($answersByQuestion[$questionId] ?? null)?->is_correct) {
+                if ($correctByQuestion[(int) $questionId] ?? false) {
                     $score += (int) $question->points;
                 }
             }
@@ -1296,6 +1283,7 @@ class MobileController extends Controller
                 'prompt' => $question->prompt,
                 'question_type' => $question->question_type,
                 'points' => (int) $question->points,
+                'allow_multiple_selection' => $question->answers->where('is_correct', true)->count() > 1,
                 'answers' => $question->answers->map(fn ($answer) => [
                     'id' => $answer->id,
                     'body' => $answer->body,

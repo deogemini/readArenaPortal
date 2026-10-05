@@ -47,6 +47,8 @@ The application returns a readable HTTP 413 page if PHP's effective `post_max_si
 
 Open the interactive Swagger UI at `/api/documentation`. The OpenAPI JSON is at `/docs/api-docs.json`.
 
+Swagger lists every registered Android API operation. Select Production, Local development, or Android emulator as the server at the top of the page. The production base URL is `https://arenayakusoma.eportsolutions.co.tz/api`.
+
 All API paths below are relative to the `/api` base URL. Except for authentication and documentation routes, send the token returned by register or login on every request:
 
 ```http
@@ -107,13 +109,32 @@ Register accepts `name`, `email`, `password`, `password_confirmation`, optional 
 | PATCH | `/duels/{duel}/cancel` | Cancel an invitation as its challenger |
 | GET | `/leaderboard?period=weekly` | Read daily, weekly, monthly, or all-time verified quiz rankings |
 | GET | `/quizzes/{quiz}` | Load a published quiz and this reader's attempt count |
-| POST | `/quizzes/{quiz}/submit` | Submit `{ "answers": { "QUESTION_ID": ANSWER_ID } }` |
+| POST | `/quizzes/{quiz}/submit` | Submit `{ "answers": { "QUESTION_ID": [ANSWER_ID, ...] } }`; a single integer remains accepted for single-choice questions |
 
-Book search supports `q`, `genre` (slug or name), `author`, `publisher`, `language`, `publication_year`, `min_pages`, `max_pages`, `reading_status`, `quiz_available`, `featured`, and `min_rating`. Use `sort` with `newest`, `title`, `highest_rated`, `popularity`, `most_completed`, or `most_dueled`; `page` and `per_page` (1 to 50) control pagination. The response keeps results in `data` and includes pagination values in `meta`. Book summaries include the approved review average and reader, completion, and duel counts. Book records provide `cover_image_url`; book details provide an authenticated `pdf_url` pointing to `/books/{book}/content`. Send the bearer token when streaming. New book PDFs are saved outside public storage. Quiz responses include answer IDs and text but never reveal which answer is correct. For a pages goal, send `goal_type: "pages"` and a published `book_id`. For a books goal, use `goal_type: "books"` and omit `book_id`. Both types require `title`, `target_value`, `start_date`, and `end_date` (`YYYY-MM-DD`). Reading progress cannot exceed the book's page count when one is set. Repeated syncs at the same or an earlier page do not add pages to the total. Goal updates preserve completed progress up to the new target.
+### Make portal quiz questions available to Android
+
+Questions are stored in the same database the API reads, so they do not need a separate push or sync. For Android access, publish the related book first, then publish its quiz. Questions created by an author remain in a draft quiz until an administrator publishes it.
+
+After signing in and adding the returned Sanctum token as a bearer token, the app can call `GET /api/books/{book_id}` to read that book's published quizzes, or `GET /api/quizzes/{quiz_id}` to load one quiz directly. Each question includes its ID and answer choices; `allow_multiple_selection` tells the app to render multi-select controls. Draft or unpublished books and quizzes are intentionally omitted or return `404`.
+
+Submit every question's selected answer IDs to `POST /api/quizzes/{quiz_id}/submit`. For example:
+
+```json
+{
+  "answers": {
+    "14": [90, 91],
+    "15": [96]
+  }
+}
+```
+
+For multi-select questions, readers earn the question's points only when they select every correct choice and no incorrect choices.
+
+Book search supports `q`, `genre` (slug or name), `author`, `publisher`, `language`, `publication_year`, `min_pages`, `max_pages`, `reading_status`, `quiz_available`, `featured`, and `min_rating`. Use `sort` with `newest`, `title`, `highest_rated`, `popularity`, `most_completed`, or `most_dueled`; `page` and `per_page` (1 to 50) control pagination. The response keeps results in `data` and includes pagination values in `meta`. Book summaries include the approved review average and reader, completion, and duel counts. Book records provide `cover_image_url`; book details provide an authenticated `pdf_url` pointing to `/books/{book}/content`. Send the bearer token when streaming. New book PDFs are saved outside public storage. Quiz responses include answer IDs and text but never reveal which answer is correct. Questions with more than one correct answer set `allow_multiple_selection` to `true`; submit all selected IDs as an array, and points are awarded only when every correct option and no incorrect options are selected. For a pages goal, send `goal_type: "pages"` and a published `book_id`. For a books goal, use `goal_type: "books"` and omit `book_id`. Both types require `title`, `target_value`, `start_date`, and `end_date` (`YYYY-MM-DD`). Reading progress cannot exceed the book's page count when one is set. Repeated syncs at the same or an earlier page do not add pages to the total. Goal updates preserve completed progress up to the new target.
 
 Reader content may be saved as a private draft without quiz verification. Publishing a lesson, recommendation, duel challenge, or show guest application requires a passing attempt for the same published book. Duel invitations support pending, accepted, rejected, and cancelled states. Guest application quiz scores are derived from the reader's best passing attempt, never accepted from client input. The leaderboard adds the best passing score once per published quiz in the chosen period.
 
-Quiz submission returns `score` as a percentage from 0 to 100, `passed`, the saved `attempt_id`, and `attempts_used`. Quiz answer maps use question IDs as object keys and answer IDs as values.
+Quiz submission returns `score` as a percentage from 0 to 100, `passed`, the saved `attempt_id`, and `attempts_used`. Quiz answer maps use question IDs as object keys and one or more selected answer IDs as values.
 
 In-app notifications are created for quiz results, duel invitations and responses, and show RSVP confirmations. Notification preferences can suppress each supported type. Email and push delivery are not wired to these API events yet.
 

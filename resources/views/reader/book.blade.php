@@ -203,10 +203,11 @@
                             <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
                                 <p class="font-semibold text-[#1B0D05]">{{ $question->prompt }}</p>
                                 <p class="mt-1 text-xs text-[#786A5D]">Points: {{ $question->points }}</p>
+                                <p class="mt-1 text-xs text-[#786A5D]">Select all that apply.</p>
                                 <div class="mt-3 space-y-2">
                                     @foreach($question->answers as $answer)
                                         <label class="flex items-center gap-2 text-sm text-[#24150D]">
-                                            <input type="radio" name="answers[{{ $question->id }}]" value="{{ $answer->id }}" required>
+                                            <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $answer->id }}">
                                             <span>{{ $answer->body }}</span>
                                         </label>
                                     @endforeach

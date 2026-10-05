@@ -67,10 +67,19 @@
                 </select>
                 <input name="title" placeholder="Quiz title" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                 <textarea name="question" placeholder="Question" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required></textarea>
-                <input name="correct_answer" placeholder="Correct answer" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
-                <input name="wrong_answer_1" placeholder="Wrong answer 1" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
-                <input name="wrong_answer_2" placeholder="Wrong answer 2" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
-                <input name="wrong_answer_3" placeholder="Wrong answer 3" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
+                <p class="text-sm text-[#5e544d]">Add four different choices, then mark every correct answer. Readers will select all that apply.</p>
+                @php
+                    $oldCorrectOptions = old('correct_options');
+                    $selectedCorrectOptions = is_array($oldCorrectOptions)
+                        ? array_map('strval', $oldCorrectOptions)
+                        : (is_array(old('answer_options')) ? [] : ['0']);
+                @endphp
+                @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
+                    <div class="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                        <input name="answer_options[{{ $optionIndex }}][body]" value="{{ old('answer_options.'.$optionIndex.'.body') }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
+                        <label class="flex items-center gap-2 text-sm text-[#5e544d]"><input type="checkbox" name="correct_options[]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedCorrectOptions, true))> Correct answer</label>
+                    </div>
+                @endfor
                 <button class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Create quiz</button>
             </form>
         </section>

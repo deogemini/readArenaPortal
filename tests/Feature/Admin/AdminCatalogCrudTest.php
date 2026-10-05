@@ -172,27 +172,36 @@ test('administrators can create update and delete quizzes and questions', functi
     $this->actingAs($admin)->post(route('admin.quizzes.questions.store', $quiz), [
         'prompt' => 'Who is the narrator?',
         'points' => 10,
-        'correct_answer' => 'Mara',
-        'wrong_answer_1' => 'Jon',
-        'wrong_answer_2' => 'Lee',
-        'wrong_answer_3' => 'Nia',
+        'answer_options' => [
+            ['body' => 'Mara'],
+            ['body' => 'Jon'],
+            ['body' => 'Lee'],
+            ['body' => 'Nia'],
+        ],
+        'correct_options' => ['0', '2'],
     ])->assertRedirect(route('admin.quizzes'));
     $question = QuizQuestion::where('quiz_id', $quiz->id)->firstOrFail();
     expect($question->answers)->toHaveCount(4)
-        ->and($question->answers->where('is_correct', false))->toHaveCount(3);
+        ->and($question->answers->where('is_correct', true)->pluck('body')->all())->toBe(['Mara', 'Lee'])
+        ->and($question->answers->where('is_correct', false))->toHaveCount(2);
 
     $this->actingAs($admin)->patch(route('admin.quiz-questions.update', $question), [
         'prompt' => 'Who tells the story?',
         'points' => 15,
         'sort_order' => 1,
-        'correct_answer' => 'Mara',
-        'wrong_answer_1' => 'Jon',
-        'wrong_answer_2' => 'Lee',
-        'wrong_answer_3' => 'Nia',
+        'question_answer_options' => [
+            $question->id => [
+                ['body' => 'Mara'],
+                ['body' => 'Jon'],
+                ['body' => 'Lee'],
+                ['body' => 'Nia'],
+            ],
+        ],
+        'question_correct_options' => [$question->id => ['1', '3']],
     ])->assertRedirect(route('admin.quizzes'));
     expect($question->fresh()->prompt)->toBe('Who tells the story?')
         ->and($question->fresh()->points)->toBe(15)
-        ->and($question->fresh()->answers->where('body', 'Nia'))->toHaveCount(1);
+        ->and($question->fresh()->answers->where('is_correct', true)->pluck('body')->all())->toBe(['Jon', 'Nia']);
 
     $this->actingAs($admin)->delete(route('admin.quiz-questions.destroy', $question))->assertRedirect(route('admin.quizzes'));
     $this->assertDatabaseMissing('quiz_questions', ['id' => $question->id]);
