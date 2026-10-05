@@ -88,6 +88,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::post('/quizzes/{quiz}/questions', [AdminController::class, 'storeQuizQuestion'])->name('admin.quizzes.questions.store');
     Route::patch('/quiz-questions/{question}', [AdminController::class, 'updateQuizQuestion'])->name('admin.quiz-questions.update');
     Route::delete('/quiz-questions/{question}', [AdminController::class, 'destroyQuizQuestion'])->name('admin.quiz-questions.destroy');
+    Route::post('/quiz-attempts/{attempt}/review', [AdminController::class, 'reviewQuizAttempt'])->name('admin.quiz-attempts.review');
     Route::delete('/quizzes/{quiz}', [AdminController::class, 'destroyQuiz'])->name('admin.quizzes.destroy');
     Route::get('/duels', [AdminController::class, 'duels'])->name('admin.duels');
     Route::patch('/duels/{duel}', [AdminController::class, 'updateDuelStatus'])->name('admin.duels.update');

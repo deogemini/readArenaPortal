@@ -7,16 +7,14 @@ use Illuminate\Validation\ValidationException;
 
 class QuizAnswerSelection
 {
-    /**
-     * Validate that each quiz question has only its own choices selected.
-     * A scalar answer ID remains accepted for older mobile clients.
-     * Returns question ID => whether the complete correct choice set was selected.
-     */
-    public static function scoreMap(array $submitted, Collection $questions): array
+    /** Validate each response and report automatic scores plus any responses needing review. */
+    public static function evaluate(array $submitted, Collection $questions): array
     {
         $questionMap = $questions->keyBy('id');
         $errors = [];
-        $selectedByQuestion = [];
+        $provided = [];
+        $results = [];
+        $responses = [];
 
         foreach ($submitted as $questionId => $selection) {
             $normalizedQuestionId = filter_var($questionId, FILTER_VALIDATE_INT);
@@ -24,6 +22,60 @@ class QuizAnswerSelection
 
             if (! $question) {
                 $errors['answers.'.$questionId] = 'This question does not belong to the quiz.';
+                continue;
+            }
+
+            $id = (int) $normalizedQuestionId;
+            $type = $question->question_type ?: 'multiple_choice';
+
+            if (in_array($type, ['one_word', 'short_answer', 'written_response'], true)) {
+                if (! is_string($selection)) {
+                    $errors['answers.'.$questionId] = 'Enter a text response.';
+                    continue;
+                }
+
+                $answer = trim($selection);
+                $maxLength = match ($type) {
+                    'one_word' => 100,
+                    'short_answer' => 1000,
+                    default => 5000,
+                };
+
+                if ($answer === '') {
+                    $errors['answers.'.$questionId] = 'Enter a response for this question.';
+                    continue;
+                }
+
+                if (mb_strlen($answer) > $maxLength) {
+                    $errors['answers.'.$questionId] = 'The response is too long.';
+                    continue;
+                }
+
+                if ($type === 'one_word' && preg_match('/\s/u', $answer)) {
+                    $errors['answers.'.$questionId] = 'Enter one word only.';
+                    continue;
+                }
+
+                $provided[$id] = true;
+                $responses[$id] = [
+                    'answer_text' => $answer,
+                    'selected_answer_ids' => null,
+                    'points_awarded' => null,
+                ];
+
+                if ($type === 'written_response') {
+                    $results[$id] = null;
+                    continue;
+                }
+
+                $acceptedAnswers = $question->answers
+                    ->where('is_correct', true)
+                    ->pluck('body')
+                    ->map(fn ($value) => self::normalizeText((string) $value));
+                $isCorrect = $acceptedAnswers->contains(self::normalizeText($answer));
+                $results[$id] = $isCorrect;
+                $responses[$id]['points_awarded'] = $isCorrect ? (int) $question->points : 0;
+
                 continue;
             }
 
@@ -49,18 +101,38 @@ class QuizAnswerSelection
                 continue;
             }
 
-            $allowedIds = $question->answers->pluck('id')->map(fn ($id) => (int) $id)->all();
+            if (in_array($type, ['single_choice', 'true_false'], true) && count($normalizedIds) !== 1) {
+                $errors['answers.'.$questionId] = 'Select exactly one answer.';
+                continue;
+            }
+
+            $allowedIds = $question->answers->pluck('id')->map(fn ($answerId) => (int) $answerId)->all();
             if (array_diff($normalizedIds, $allowedIds) !== []) {
                 $errors['answers.'.$questionId] = 'Selected answers must belong to this question.';
                 continue;
             }
 
             sort($normalizedIds);
-            $selectedByQuestion[(int) $normalizedQuestionId] = $normalizedIds;
+            $provided[$id] = true;
+            $correctIds = $question->answers
+                ->where('is_correct', true)
+                ->pluck('id')
+                ->map(fn ($answerId) => (int) $answerId)
+                ->sort()
+                ->values()
+                ->all();
+            $isCorrect = $correctIds !== [] && $normalizedIds === $correctIds;
+
+            $results[$id] = $isCorrect;
+            $responses[$id] = [
+                'answer_text' => null,
+                'selected_answer_ids' => $normalizedIds,
+                'points_awarded' => $isCorrect ? (int) $question->points : 0,
+            ];
         }
 
         foreach ($questions as $question) {
-            if (! array_key_exists((int) $question->id, $selectedByQuestion)) {
+            if (! isset($provided[(int) $question->id])) {
                 $errors['answers.'.$question->id] ??= 'Answer every quiz question.';
             }
         }
@@ -69,20 +141,25 @@ class QuizAnswerSelection
             throw ValidationException::withMessages($errors);
         }
 
-        $scores = [];
-        foreach ($questions as $question) {
-            $correctIds = $question->answers
-                ->where('is_correct', true)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->sort()
-                ->values()
-                ->all();
+        return [
+            'correct_by_question' => $results,
+            'responses' => $responses,
+            'needs_review' => in_array(null, $results, true),
+        ];
+    }
 
-            $scores[(int) $question->id] = $correctIds !== []
-                && $selectedByQuestion[(int) $question->id] === $correctIds;
-        }
+    /** Backwards-compatible result helper used by existing single- and multi-choice callers. */
+    public static function scoreMap(array $submitted, Collection $questions): array
+    {
+        return self::evaluate($submitted, $questions)['correct_by_question'];
+    }
 
-        return $scores;
+    private static function normalizeText(string $answer): string
+    {
+        $answer = mb_strtolower(trim($answer));
+        $answer = preg_replace('/[\pP\pS]+/u', ' ', $answer) ?? $answer;
+        $answer = preg_replace('/\s+/u', ' ', $answer) ?? $answer;
+
+        return trim($answer);
     }
 }

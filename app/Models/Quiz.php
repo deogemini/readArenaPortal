@@ -14,19 +14,22 @@ class Quiz extends Model
     {
         $attempts = static fn () => DB::table('quiz_attempts')
             ->whereColumn('quiz_attempts.quiz_id', 'quizzes.id');
+        $gradedAttempts = static fn () => $attempts()->where('quiz_attempts.review_status', 'graded');
 
         return $query->addSelect([
             'attempts_count' => $attempts()->selectRaw('COUNT(*)'),
             'readers_count' => $attempts()->selectRaw('COUNT(DISTINCT quiz_attempts.user_id)'),
-            'passed_attempts_count' => $attempts()->where('quiz_attempts.passed', true)->selectRaw('COUNT(*)'),
-            'average_score' => $attempts()->selectRaw('AVG(quiz_attempts.score)'),
-            'best_score' => $attempts()->selectRaw('MAX(quiz_attempts.score)'),
+            'pending_review_attempts_count' => $attempts()->where('quiz_attempts.review_status', 'pending_review')->selectRaw('COUNT(*)'),
+            'graded_attempts_count' => $gradedAttempts()->selectRaw('COUNT(*)'),
+            'passed_attempts_count' => $gradedAttempts()->where('quiz_attempts.passed', true)->selectRaw('COUNT(*)'),
+            'average_score' => $gradedAttempts()->selectRaw('AVG(quiz_attempts.score)'),
+            'best_score' => $gradedAttempts()->selectRaw('MAX(quiz_attempts.score)'),
         ]);
     }
 
     public function getPassRateAttribute(): ?float
     {
-        $attempts = (int) ($this->attempts_count ?? 0);
+        $attempts = (int) ($this->graded_attempts_count ?? 0);
 
         return $attempts > 0
             ? round(((int) ($this->passed_attempts_count ?? 0) / $attempts) * 100, 1)

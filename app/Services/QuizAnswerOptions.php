@@ -50,15 +50,17 @@ class QuizAnswerOptions
         return $payload;
     }
 
-    /** Update or create the four answer rows in displayed order. */
+    /** Update, create, or remove the answer rows in displayed order. */
     public static function sync(QuizQuestion $question, array $payload): void
     {
+        $options = $payload['options'];
+        $correctIndices = $payload['correct_indices'];
         $existing = $question->answers()->orderBy('id')->get();
 
-        foreach (range(0, 3) as $index) {
+        foreach (array_keys($options) as $index) {
             $answerData = [
-                'body' => $payload['options'][$index]['body'],
-                'is_correct' => in_array($index, $payload['correct_indices'], true),
+                'body' => $options[$index]['body'],
+                'is_correct' => in_array($index, $correctIndices, true),
             ];
             $answer = $existing->get($index);
 
@@ -69,6 +71,6 @@ class QuizAnswerOptions
             }
         }
 
-        $existing->slice(4)->each(fn (QuizAnswer $answer) => $answer->delete());
+        $existing->slice(count($options))->each(fn (QuizAnswer $answer) => $answer->delete());
     }
 }

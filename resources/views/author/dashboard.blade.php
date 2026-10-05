@@ -57,7 +57,7 @@
 
         <section class="rounded-[24px] border border-[#d8c9ad] bg-[#FBF6EA] p-6">
             <h2 class="font-serif text-2xl">Create a Quiz</h2>
-            <form action="{{ route('author.quizzes.store') }}" method="POST" class="mt-5 space-y-4">
+            <form action="{{ route('author.quizzes.store') }}" method="POST" class="mt-5 space-y-4" data-question-builder>
                 @csrf
                 <select name="book_id" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                     <option value="">Select book</option>
@@ -67,19 +67,44 @@
                 </select>
                 <input name="title" placeholder="Quiz title" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                 <textarea name="question" placeholder="Question" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required></textarea>
-                <p class="text-sm text-[#5e544d]">Add four different choices, then mark every correct answer. Readers will select all that apply.</p>
+                <select name="question_type" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" data-question-type-select>
+                    <option value="single_choice" @selected(old('question_type') === 'single_choice')>Single choice</option>
+                    <option value="multiple_choice" @selected(old('question_type', 'multiple_choice') === 'multiple_choice')>Multiple correct choices</option>
+                    <option value="true_false" @selected(old('question_type') === 'true_false')>True or false</option>
+                    <option value="one_word" @selected(old('question_type') === 'one_word')>One-word answer</option>
+                    <option value="short_answer" @selected(old('question_type') === 'short_answer')>Short answer</option>
+                    <option value="written_response" @selected(old('question_type') === 'written_response')>Written explanation (manual review)</option>
+                </select>
                 @php
-                    $oldCorrectOptions = old('correct_options');
-                    $selectedCorrectOptions = is_array($oldCorrectOptions)
-                        ? array_map('strval', $oldCorrectOptions)
-                        : (is_array(old('answer_options')) ? [] : ['0']);
+                    $oldCorrectOptions = old('correct_options', ['0']);
+                    $selectedCorrectOptions = is_array($oldCorrectOptions) ? array_map('strval', $oldCorrectOptions) : [];
                 @endphp
-                @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
-                    <div class="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                        <input name="answer_options[{{ $optionIndex }}][body]" value="{{ old('answer_options.'.$optionIndex.'.body') }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
-                        <label class="flex items-center gap-2 text-sm text-[#5e544d]"><input type="checkbox" name="correct_options[]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedCorrectOptions, true))> Correct answer</label>
-                    </div>
-                @endfor
+                <div data-type-fields="choice">
+                    <p class="mb-3 text-sm text-[#5e544d]" data-choice-help></p>
+                    @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
+                        <div class="mb-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+                            <input name="answer_options[{{ $optionIndex }}][body]" value="{{ old('answer_options.'.$optionIndex.'.body') }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" data-choice-input>
+                            <label class="flex items-center gap-2 text-sm text-[#5e544d]"><input type="checkbox" name="correct_options[]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedCorrectOptions, true)) data-correct-option> Correct answer</label>
+                        </div>
+                    @endfor
+                </div>
+                <div data-type-fields="true_false" hidden>
+                    <label class="block text-sm text-[#5e544d]">Correct answer
+                        <select name="true_false_correct" class="mt-2 w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2"><option value="">Choose true or false</option><option value="0" @selected(old('true_false_correct') === '0')>True</option><option value="1" @selected(old('true_false_correct') === '1')>False</option></select>
+                    </label>
+                </div>
+                <div data-type-fields="accepted" hidden>
+                    <label class="block text-sm text-[#5e544d]">Accepted answer(s), one per line
+                        <textarea name="accepted_answers" rows="4" class="mt-2 w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" placeholder="Add acceptable answer variants, one per line.">{{ old('accepted_answers') }}</textarea>
+                    </label>
+                    <p class="mt-1 text-xs text-[#5e544d]">These are automatically marked without regard to case or punctuation.</p>
+                </div>
+                <div data-type-fields="written_response" hidden>
+                    <label class="block text-sm text-[#5e544d]">Private marking guide
+                        <textarea name="answer_guide" rows="4" maxlength="5000" class="mt-2 w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" placeholder="Tell the reviewer what a good explanation should include.">{{ old('answer_guide') }}</textarea>
+                    </label>
+                    <p class="mt-1 text-xs text-[#5e544d]">An administrator will grade written explanations manually.</p>
+                </div>
                 <button class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Create quiz</button>
             </form>
         </section>
@@ -100,5 +125,34 @@
         </section>
     </main>
 </div>
+<script>
+    document.querySelectorAll('[data-question-builder]').forEach((builder) => {
+        const typeSelect = builder.querySelector('[data-question-type-select]');
+        if (!typeSelect) return;
+        const updateFields = () => {
+            const type = typeSelect.value;
+            builder.querySelectorAll('[data-type-fields]').forEach((section) => {
+                const kind = section.dataset.typeFields;
+                const active = kind === 'choice'
+                    ? ['single_choice', 'multiple_choice'].includes(type)
+                    : kind === type || (kind === 'accepted' && ['one_word', 'short_answer'].includes(type));
+                section.hidden = !active;
+                section.querySelectorAll('input, textarea, select').forEach((input) => {
+                    input.disabled = !active;
+                    input.required = active && (input.hasAttribute('data-choice-input') || kind !== 'choice');
+                });
+            });
+            builder.querySelectorAll('[data-correct-option]').forEach((input) => {
+                input.type = type === 'single_choice' ? 'radio' : 'checkbox';
+            });
+            const help = builder.querySelector('[data-choice-help]');
+            if (help) help.textContent = type === 'single_choice'
+                ? 'Enter four different choices and mark exactly one correct answer.'
+                : 'Enter four different choices and mark all correct answers.';
+        };
+        typeSelect.addEventListener('change', updateFields);
+        updateFields();
+    });
+</script>
 </body>
 </html>

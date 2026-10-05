@@ -9,10 +9,12 @@ use App\Models\Publisher;
 use App\Models\Quiz;
 use App\Models\QuizQuestion;
 use App\Services\QuizAnswerOptions;
+use App\Services\QuizQuestionDefinition;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AuthorController extends Controller
@@ -79,14 +81,19 @@ class AuthorController extends Controller
             'book_id' => ['required', 'exists:books,id'],
             'title' => ['required', 'string', 'max:255'],
             'question' => ['required', 'string'],
+            'question_type' => ['nullable', Rule::in(QuizQuestion::TYPES)],
         ]);
-        $answerPayload = QuizAnswerOptions::validate(
+        $questionType = $payload['question_type'] ?? 'multiple_choice';
+        $answerPayload = QuizQuestionDefinition::validate(
+            $questionType,
             $request->input('answer_options'),
             $request->input('correct_options'),
-            1000,
+            $request->input('true_false_correct'),
+            $request->input('accepted_answers'),
+            $request->input('answer_guide'),
         );
 
-        DB::transaction(function () use ($payload, $answerPayload): void {
+        DB::transaction(function () use ($payload, $questionType, $answerPayload): void {
             $quiz = Quiz::create([
                 'book_id' => $payload['book_id'],
                 'title' => $payload['title'],
@@ -100,7 +107,7 @@ class AuthorController extends Controller
             $question = QuizQuestion::create([
                 'quiz_id' => $quiz->id,
                 'prompt' => $payload['question'],
-                'question_type' => 'multiple_choice',
+                'question_type' => $questionType,
                 'points' => 10,
                 'sort_order' => 1,
             ]);

@@ -54,6 +54,33 @@
                     </div>
                 @endif
 
+                @if($pendingQuizAttempts->isNotEmpty())
+                    <section class="mb-6 rounded-[20px] border border-[#8c6728] bg-[#2B170D] p-6">
+                        <h2 class="font-serif text-2xl">Written responses awaiting review</h2>
+                        <p class="mt-1 text-sm text-[#d8c9ad]">Scores are finalized after every written explanation is marked.</p>
+                        <div class="mt-4 space-y-4">
+                            @foreach($pendingQuizAttempts as $pendingAttempt)
+                                <form action="{{ route('admin.quiz-attempts.review', $pendingAttempt) }}" method="POST" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] p-4">
+                                    @csrf
+                                    <h3 class="font-semibold">{{ $pendingAttempt->user?->name ?? 'Reader' }} · {{ $pendingAttempt->quiz?->title }} · {{ $pendingAttempt->quiz?->book?->title }}</h3>
+                                    <p class="mt-1 text-xs text-[#b8ab95]">Submitted {{ $pendingAttempt->created_at?->format('Y-m-d H:i') }}</p>
+                                    @foreach($pendingAttempt->responses->filter(fn ($response) => $response->question?->question_type === 'written_response') as $response)
+                                        <div class="mt-4 rounded-lg border border-[#3d261b] p-3">
+                                            <p class="font-medium">{{ $response->question->prompt }}</p>
+                                            <p class="mt-2 whitespace-pre-wrap text-sm text-[#d8c9ad]">{{ $response->answer_text }}</p>
+                                            <p class="mt-2 text-xs text-[#D8A83E]">Marking guide: {{ $response->question->answers->firstWhere('is_correct', true)?->body }}</p>
+                                            <label class="mt-3 flex items-center gap-2 text-sm">Points (0–{{ $response->question->points }})
+                                                <input type="number" name="points_awarded[{{ $response->quiz_question_id }}]" min="0" max="{{ $response->question->points }}" required class="w-24 rounded-lg border border-[#3d261b] bg-[#2B170D] px-3 py-2">
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                    <button class="mt-4 rounded-full bg-[#D8A83E] px-5 py-2 text-sm font-semibold text-[#1B0D05]">Finalize score</button>
+                                </form>
+                            @endforeach
+                        </div>
+                    </section>
+                @endif
+
                 <div class="mb-6 grid gap-6 lg:grid-cols-2">
                     <section class="rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-6">
                         <h2 class="font-serif text-2xl">Create Quiz</h2>
@@ -94,7 +121,7 @@
 
                     <section class="rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-6">
                         <h2 class="font-serif text-2xl">Add Question to Quiz</h2>
-                        <form action="{{ route('admin.quizzes.questions.store', ['quiz' => old('quiz_id', $quizzes->first()?->id ?? 0)]) }}" method="POST" class="mt-5 grid gap-4" id="question-form">
+                        <form action="{{ route('admin.quizzes.questions.store', ['quiz' => old('quiz_id', $quizzes->first()?->id ?? 0)]) }}" method="POST" class="mt-5 grid gap-4" id="question-form" data-question-builder>
                             @csrf
                             <select name="quiz_id" id="quiz-select" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                                 <option value="">Select quiz</option>
@@ -107,19 +134,24 @@
                                 <input type="number" name="points" value="{{ old('points', 10) }}" placeholder="Points" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                                 <input type="number" name="sort_order" value="{{ old('sort_order') }}" placeholder="Sort order (optional)" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                             </div>
-                            <p class="text-xs text-[#d8c9ad]">Enter four different choices and mark every correct answer. Readers must select all correct choices.</p>
                             @php
-                                $oldCorrectOptions = old('correct_options');
-                                $selectedCorrectOptions = is_array($oldCorrectOptions)
-                                    ? array_map('strval', $oldCorrectOptions)
-                                    : (is_array(old('answer_options')) ? [] : ['0']);
+                                $oldCorrectOptions = old('correct_options', ['0']);
+                                $selectedCorrectOptions = is_array($oldCorrectOptions) ? array_map('strval', $oldCorrectOptions) : [];
                             @endphp
-                            @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
-                                <div class="grid gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] p-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                                    <input name="answer_options[{{ $optionIndex }}][body]" value="{{ old('answer_options.'.$optionIndex.'.body') }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="rounded-lg border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                                    <label class="flex items-center gap-2 text-sm text-[#d8c9ad]"><input type="checkbox" name="correct_options[]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedCorrectOptions, true))> Correct answer</label>
-                                </div>
-                            @endfor
+                            @include('admin.partials.question-answer-fields', [
+                                'typeField' => 'question_type',
+                                'selectedType' => old('question_type', 'multiple_choice'),
+                                'answerOptionsField' => 'answer_options',
+                                'correctOptionsField' => 'correct_options[]',
+                                'trueFalseField' => 'true_false_correct',
+                                'acceptedAnswersField' => 'accepted_answers',
+                                'answerGuideField' => 'answer_guide',
+                                'optionBodies' => old('answer_options', []),
+                                'selectedCorrectOptions' => $selectedCorrectOptions,
+                                'trueFalseCorrect' => old('true_false_correct'),
+                                'acceptedAnswersText' => old('accepted_answers', ''),
+                                'answerGuideText' => old('answer_guide', ''),
+                            ])
                             <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Add question</button>
                         </form>
                     </section>
@@ -188,6 +220,12 @@
                                         $selectedQuestionCorrectOptions = is_array($oldQuestionCorrectOptions)
                                             ? array_map('strval', $oldQuestionCorrectOptions)
                                             : (is_array($oldQuestionOptions) && $oldQuestionOptions !== [] ? [] : $savedCorrectOptions);
+                                        $questionType = old('question_type.'.$question->id, $question->question_type ?: 'multiple_choice');
+                                        $questionOptionBodies = $oldQuestionOptions !== [] ? $oldQuestionOptions : $questionAnswers->pluck('body')->all();
+                                        $acceptedAnswersText = old('question_accepted_answers.'.$question->id, $questionAnswers->where('is_correct', true)->pluck('body')->implode("\n"));
+                                        $answerGuideText = old('question_answer_guide.'.$question->id, $questionType === 'written_response' ? ($questionAnswers->firstWhere('is_correct', true)?->body ?? '') : '');
+                                        $trueFalseBody = $questionAnswers->firstWhere('is_correct', true)?->body;
+                                        $trueFalseCorrect = old('question_true_false_correct.'.$question->id, $trueFalseBody === 'False' ? '1' : ($trueFalseBody === 'True' ? '0' : ''));
                                     @endphp
                                     <tr class="border-t border-[#3d261b]/60 bg-[#130804]">
                                         <td colspan="9" class="px-4 py-4">
@@ -198,19 +236,26 @@
                                                     Not edited after creation
                                                 @endif
                                             </div>
-                                            <form action="{{ route('admin.quiz-questions.update', $question) }}" method="POST" class="grid gap-3 md:grid-cols-2">
+                                            <form action="{{ route('admin.quiz-questions.update', $question) }}" method="POST" class="grid gap-3 md:grid-cols-2" data-question-builder>
                                                 @csrf
                                                 @method('PATCH')
                                                 <input name="prompt" value="{{ $question->prompt }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2 md:col-span-2" required>
                                                 <input type="number" name="points" value="{{ $question->points }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" min="1" required>
                                                 <input type="number" name="sort_order" value="{{ $question->sort_order }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" min="1" required>
-                                                <p class="text-xs text-[#d8c9ad] md:col-span-2">Mark one or more choices as correct.</p>
-                                                @for($optionIndex = 0; $optionIndex < 4; $optionIndex++)
-                                                    <div class="grid gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] p-2 sm:grid-cols-[1fr_auto] sm:items-center">
-                                                        <input name="question_answer_options[{{ $question->id }}][{{ $optionIndex }}][body]" value="{{ data_get($oldQuestionOptions, $optionIndex.'.body', $questionAnswers->get($optionIndex)?->body) }}" placeholder="Answer choice {{ $optionIndex + 1 }}" class="rounded-lg bg-[#1B0D05] px-3 py-2" required>
-                                                        <label class="flex items-center gap-2 text-sm text-[#d8c9ad]"><input type="checkbox" name="question_correct_options[{{ $question->id }}][]" value="{{ $optionIndex }}" @checked(in_array((string) $optionIndex, $selectedQuestionCorrectOptions, true))> Correct</label>
-                                                    </div>
-                                                @endfor
+                                                @include('admin.partials.question-answer-fields', [
+                                                    'typeField' => 'question_type['.$question->id.']',
+                                                    'selectedType' => $questionType,
+                                                    'answerOptionsField' => 'question_answer_options['.$question->id.']',
+                                                    'correctOptionsField' => 'question_correct_options['.$question->id.'][]',
+                                                    'trueFalseField' => 'question_true_false_correct['.$question->id.']',
+                                                    'acceptedAnswersField' => 'question_accepted_answers['.$question->id.']',
+                                                    'answerGuideField' => 'question_answer_guide['.$question->id.']',
+                                                    'optionBodies' => $questionOptionBodies,
+                                                    'selectedCorrectOptions' => $selectedQuestionCorrectOptions,
+                                                    'trueFalseCorrect' => $trueFalseCorrect,
+                                                    'acceptedAnswersText' => $acceptedAnswersText,
+                                                    'answerGuideText' => $answerGuideText,
+                                                ])
                                                 <div class="md:col-span-2">
                                                     <button class="rounded-full bg-[#D8A83E] px-4 py-2 text-xs font-semibold text-[#1B0D05]">Save question changes</button>
                                                 </div>
@@ -240,20 +285,44 @@
             (function () {
                 const form = document.getElementById('question-form');
                 const select = document.getElementById('quiz-select');
-                if (!form || !select) {
-                    return;
-                }
+                document.querySelectorAll('[data-question-builder]').forEach((builder) => {
+                    const typeSelect = builder.querySelector('[data-question-type-select]');
+                    if (!typeSelect) return;
 
-                function updateAction() {
-                    const quizId = select.value;
-                    if (!quizId) {
-                        return;
-                    }
-                    form.action = '{{ url('/admin/quizzes') }}/' + quizId + '/questions';
-                }
+                    const updateFields = () => {
+                        const type = typeSelect.value;
+                        builder.querySelectorAll('[data-type-fields]').forEach((section) => {
+                            const sectionType = section.dataset.typeFields;
+                            const active = sectionType === 'choice'
+                                ? ['single_choice', 'multiple_choice'].includes(type)
+                                : sectionType === type || (sectionType === 'accepted' && ['one_word', 'short_answer'].includes(type));
+                            section.hidden = !active;
+                            section.querySelectorAll('input, textarea, select').forEach((input) => {
+                                input.disabled = !active;
+                                input.required = active && (input.hasAttribute('data-choice-input') || sectionType !== 'choice');
+                            });
+                        });
 
-                select.addEventListener('change', updateAction);
-                updateAction();
+                        builder.querySelectorAll('[data-correct-option]').forEach((input) => {
+                            input.type = type === 'single_choice' ? 'radio' : 'checkbox';
+                        });
+                        const help = builder.querySelector('[data-choice-help]');
+                        if (help) help.textContent = type === 'single_choice'
+                            ? 'Enter four different choices and mark exactly one correct answer.'
+                            : 'Enter four different choices and mark all correct answers.';
+                    };
+
+                    typeSelect.addEventListener('change', updateFields);
+                    updateFields();
+                });
+
+                if (form && select) {
+                    const updateAction = () => {
+                        if (select.value) form.action = '{{ url('/admin/quizzes') }}/' + select.value + '/questions';
+                    };
+                    select.addEventListener('change', updateAction);
+                    updateAction();
+                }
             })();
         </script>
     </main>

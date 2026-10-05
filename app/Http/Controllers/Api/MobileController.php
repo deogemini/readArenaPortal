@@ -993,10 +993,9 @@ class MobileController extends Controller
             'answers' => ['required', 'array'],
         ]);
 
-        $questionMap = $quiz->questions->keyBy('id');
-        $correctByQuestion = QuizAnswerSelection::scoreMap($validated['answers'], $quiz->questions);
+        $evaluation = QuizAnswerSelection::evaluate($validated['answers'], $quiz->questions);
 
-        $result = DB::transaction(function () use ($quiz, $request, $questionMap, $correctByQuestion) {
+        $result = DB::transaction(function () use ($quiz, $request, $evaluation) {
             $lockedQuiz = Quiz::query()->whereKey($quiz->id)->lockForUpdate()->firstOrFail();
             $attemptsCount = QuizAttempt::query()
                 ->where('quiz_id', $lockedQuiz->id)
@@ -1010,36 +1009,53 @@ class MobileController extends Controller
             $score = 0;
             $totalPoints = 0;
 
-            foreach ($questionMap as $questionId => $question) {
+            foreach ($quiz->questions as $question) {
                 $totalPoints += (int) $question->points;
-                if ($correctByQuestion[(int) $questionId] ?? false) {
-                    $score += (int) $question->points;
-                }
+                $score += (int) ($evaluation['responses'][(int) $question->id]['points_awarded'] ?? 0);
             }
 
             $percentScore = $totalPoints > 0 ? (int) round(($score / $totalPoints) * 100) : 0;
-            $passed = $percentScore >= (int) $lockedQuiz->pass_mark;
+            $reviewStatus = $evaluation['needs_review'] ? 'pending_review' : 'graded';
+            $passed = ! $evaluation['needs_review'] && $percentScore >= (int) $lockedQuiz->pass_mark;
 
             $attempt = QuizAttempt::create([
                 'quiz_id' => $lockedQuiz->id,
                 'user_id' => $request->user()->id,
-                'score' => $percentScore,
+                'score' => $evaluation['needs_review'] ? 0 : $percentScore,
                 'passed' => $passed,
+                'review_status' => $reviewStatus,
             ]);
 
-            return ['score' => $percentScore, 'passed' => $passed, 'attempt_id' => $attempt->id, 'attempts_used' => $attemptsCount + 1];
+            foreach ($quiz->questions as $question) {
+                $attempt->responses()->create([
+                    'quiz_question_id' => $question->id,
+                    ...$evaluation['responses'][(int) $question->id],
+                ]);
+            }
+
+            return [
+                'score' => $evaluation['needs_review'] ? null : $percentScore,
+                'passed' => $evaluation['needs_review'] ? null : $passed,
+                'review_status' => $reviewStatus,
+                'attempt_id' => $attempt->id,
+                'attempts_used' => $attemptsCount + 1,
+            ];
         });
 
-        $notifications->send(
-            $request->user(),
-            $result['passed'] ? 'quiz_passed' : 'quiz_failed',
-            $result['passed'] ? 'Quiz passed' : 'Quiz complete',
-            'You scored '.$result['score'].'% on '.$quiz->title.'.',
-            ['quiz_id' => $quiz->id, 'book_id' => $quiz->book_id, 'attempt_id' => $result['attempt_id'], 'score' => $result['score'], 'passed' => $result['passed']],
-        );
+        if ($result['review_status'] === 'graded') {
+            $notifications->send(
+                $request->user(),
+                $result['passed'] ? 'quiz_passed' : 'quiz_failed',
+                $result['passed'] ? 'Quiz passed' : 'Quiz complete',
+                'You scored '.$result['score'].'% on '.$quiz->title.'.',
+                ['quiz_id' => $quiz->id, 'book_id' => $quiz->book_id, 'attempt_id' => $result['attempt_id'], 'score' => $result['score'], 'passed' => $result['passed']],
+            );
+        }
 
         return response()->json([
-            'message' => 'Quiz submitted successfully.',
+            'message' => $result['review_status'] === 'pending_review'
+                ? 'Quiz submitted. Your written response is awaiting review.'
+                : 'Quiz submitted successfully.',
             'data' => $result,
         ]);
     }
@@ -1101,6 +1117,8 @@ class MobileController extends Controller
             'published_quizzes_count' => (int) ($book->published_quizzes_count ?? 0),
             'quiz_readers_count' => (int) ($book->quiz_readers_count ?? 0),
             'quiz_attempts_count' => (int) ($book->quiz_attempts_count ?? 0),
+            'quiz_pending_review_attempts_count' => (int) ($book->quiz_pending_review_attempts_count ?? 0),
+            'quiz_graded_attempts_count' => (int) ($book->quiz_graded_attempts_count ?? 0),
             'quiz_passed_attempts_count' => (int) ($book->quiz_passed_attempts_count ?? 0),
             'quiz_average_score' => $book->quiz_average_score !== null ? round((float) $book->quiz_average_score, 1) : null,
             'quiz_pass_rate' => $book->quiz_pass_rate,
@@ -1281,6 +1299,8 @@ class MobileController extends Controller
         $attempts = QuizAttempt::query()
             ->where('quiz_id', $quiz->id)
             ->where('user_id', $user->id);
+        $gradedAttempts = (clone $attempts)->where('review_status', 'graded');
+        $latestAttempt = (clone $attempts)->latest('id')->first();
 
         return [
             'id' => $quiz->id,
@@ -1289,11 +1309,20 @@ class MobileController extends Controller
             'pass_mark' => (int) $quiz->pass_mark,
             'attempt_limit' => (int) $quiz->attempt_limit,
             'attempts_used' => (clone $attempts)->count(),
-            'best_score' => (int) ((clone $attempts)->max('score') ?? 0),
+            'best_score' => (int) ($gradedAttempts->max('score') ?? 0),
+            'latest_attempt' => $latestAttempt ? [
+                'id' => $latestAttempt->id,
+                'review_status' => $latestAttempt->review_status,
+                'score' => $latestAttempt->review_status === 'graded' ? (int) $latestAttempt->score : null,
+                'passed' => $latestAttempt->review_status === 'graded' ? (bool) $latestAttempt->passed : null,
+                'submitted_at' => $latestAttempt->created_at,
+            ] : null,
             'duration_minutes' => (int) $quiz->duration_minutes,
             'performance' => [
                 'readers_count' => (int) ($quiz->readers_count ?? 0),
                 'attempts_count' => (int) ($quiz->attempts_count ?? 0),
+                'pending_review_attempts_count' => (int) ($quiz->pending_review_attempts_count ?? 0),
+                'graded_attempts_count' => (int) ($quiz->graded_attempts_count ?? 0),
                 'passed_attempts_count' => (int) ($quiz->passed_attempts_count ?? 0),
                 'average_score' => $quiz->average_score !== null ? round((float) $quiz->average_score, 1) : null,
                 'pass_rate' => $quiz->pass_rate,
@@ -1304,11 +1333,21 @@ class MobileController extends Controller
                 'prompt' => $question->prompt,
                 'question_type' => $question->question_type,
                 'points' => (int) $question->points,
-                'allow_multiple_selection' => $question->answers->where('is_correct', true)->count() > 1,
-                'answers' => $question->answers->map(fn ($answer) => [
-                    'id' => $answer->id,
-                    'body' => $answer->body,
-                ])->values(),
+                'allow_multiple_selection' => $question->question_type === 'multiple_choice'
+                    || $question->answers->where('is_correct', true)->count() > 1,
+                'response_format' => match ($question->question_type) {
+                    'one_word' => ['kind' => 'text', 'max_length' => 100, 'auto_graded' => true],
+                    'short_answer' => ['kind' => 'textarea', 'max_length' => 1000, 'auto_graded' => true],
+                    'written_response' => ['kind' => 'textarea', 'max_length' => 5000, 'auto_graded' => false, 'requires_review' => true],
+                    default => ['kind' => 'choice'],
+                },
+                'answers' => in_array($question->question_type, ['single_choice', 'multiple_choice', 'true_false'], true)
+                    || ($question->question_type === null && $question->answers->isNotEmpty())
+                    ? $question->answers->map(fn ($answer) => [
+                        'id' => $answer->id,
+                        'body' => $answer->body,
+                    ])->values()
+                    : [],
             ])->values(),
         ];
     }

@@ -25,6 +25,7 @@ use App\Services\BookReviewService;
 use App\Services\QuizAnswerSelection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ReaderController extends Controller
@@ -91,11 +92,13 @@ class ReaderController extends Controller
 
         $quizStats = $book->quizzes->mapWithKeys(function (Quiz $quiz) use ($readerId) {
             $attempts = QuizAttempt::where('quiz_id', $quiz->id)->where('user_id', $readerId)->get();
+            $gradedAttempts = $attempts->where('review_status', 'graded');
 
             return [
                 $quiz->id => [
                     'attempts' => $attempts->count(),
-                    'best_score' => (int) ($attempts->max('score') ?? 0),
+                    'pending_review' => $attempts->where('review_status', 'pending_review')->count(),
+                    'best_score' => (int) ($gradedAttempts->max('score') ?? 0),
                 ],
             ];
         });
@@ -318,28 +321,38 @@ class ReaderController extends Controller
         $validated = $request->validate([
             'answers' => ['required', 'array'],
         ]);
-        $correctByQuestion = QuizAnswerSelection::scoreMap($validated['answers'], $quiz->questions);
+        $evaluation = QuizAnswerSelection::evaluate($validated['answers'], $quiz->questions);
 
         $score = 0;
         $totalPoints = 0;
 
         foreach ($quiz->questions as $question) {
             $totalPoints += (int) $question->points;
-            if ($correctByQuestion[(int) $question->id] ?? false) {
-                $score += (int) $question->points;
-            }
+            $score += (int) ($evaluation['responses'][(int) $question->id]['points_awarded'] ?? 0);
         }
 
         $percentScore = $totalPoints > 0 ? (int) round(($score / $totalPoints) * 100) : 0;
 
-        QuizAttempt::create([
-            'quiz_id' => $quiz->id,
-            'user_id' => $readerId,
-            'score' => $percentScore,
-            'passed' => $percentScore >= (int) $quiz->pass_mark,
-        ]);
+        DB::transaction(function () use ($quiz, $readerId, $evaluation, $percentScore): void {
+            $attempt = QuizAttempt::create([
+                'quiz_id' => $quiz->id,
+                'user_id' => $readerId,
+                'score' => $evaluation['needs_review'] ? 0 : $percentScore,
+                'passed' => ! $evaluation['needs_review'] && $percentScore >= (int) $quiz->pass_mark,
+                'review_status' => $evaluation['needs_review'] ? 'pending_review' : 'graded',
+            ]);
 
-        return back()->with('status', 'Quiz submitted. You scored '.$percentScore.' points.');
+            foreach ($quiz->questions as $question) {
+                $attempt->responses()->create([
+                    'quiz_question_id' => $question->id,
+                    ...$evaluation['responses'][(int) $question->id],
+                ]);
+            }
+        });
+
+        return back()->with('status', $evaluation['needs_review']
+            ? 'Quiz submitted. Your written response is waiting for review.'
+            : 'Quiz submitted. You scored '.$percentScore.'%.');
     }
 
     public function goals()

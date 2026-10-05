@@ -21,6 +21,8 @@ use App\Models\ShowApplication;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Services\QuizAnswerOptions;
+use App\Services\QuizQuestionDefinition;
+use App\Services\ReaderNotificationService;
 use App\Services\ShowParticipationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -51,8 +53,8 @@ class AdminController extends Controller
 
         $recentActivity = collect()
             ->merge(QuizAttempt::query()->with(['user:id,name', 'quiz.book:id,title'])->latest()->limit(5)->get()->map(fn (QuizAttempt $attempt) => [
-                'label' => $attempt->passed ? 'Quiz passed' : 'Quiz attempted',
-                'detail' => ($attempt->user?->name ?? 'Reader').' scored '.$attempt->score.'% on '.($attempt->quiz?->title ?? 'a quiz'),
+                'label' => $attempt->review_status === 'pending_review' ? 'Quiz awaiting review' : ($attempt->passed ? 'Quiz passed' : 'Quiz attempted'),
+                'detail' => ($attempt->user?->name ?? 'Reader').($attempt->review_status === 'pending_review' ? ' submitted a written response for ' : ' scored '.$attempt->score.'% on ').($attempt->quiz?->title ?? 'a quiz'),
                 'date' => $attempt->created_at,
             ]))
             ->merge(Duel::query()->with(['book:id,title', 'challenger:id,name', 'opponent:id,name'])->latest()->limit(5)->get()->map(fn (Duel $duel) => [
@@ -435,6 +437,12 @@ class AdminController extends Controller
         return view('admin.quizzes', [
             'quizzes' => Quiz::with(['book', 'questions.answers', 'questions.editor'])->withCount('attempts')->latest()->paginate(10),
             'books' => Book::orderBy('title')->get(['id', 'title']),
+            'pendingQuizAttempts' => QuizAttempt::query()
+                ->where('review_status', 'pending_review')
+                ->with(['quiz.book', 'user:id,name', 'responses.question.answers'])
+                ->oldest()
+                ->limit(50)
+                ->get(),
         ]);
     }
 
@@ -460,6 +468,12 @@ class AdminController extends Controller
 
     public function updateQuizQuestion(Request $request, QuizQuestion $question): RedirectResponse
     {
+        if ($question->quiz()->whereHas('attempts')->exists()) {
+            return redirect()->route('admin.quizzes')->withErrors([
+                'question_update' => 'Questions cannot be changed after a reader has attempted the quiz.',
+            ]);
+        }
+
         $payload = $request->validate([
             'prompt' => [
                 'required',
@@ -471,14 +485,20 @@ class AdminController extends Controller
         ], [
             'prompt.unique' => 'This question already exists in this quiz.',
         ]);
-        $answerPayload = QuizAnswerOptions::validate(
+        $questionType = $request->input('question_type.'.$question->id, $question->question_type);
+        $answerPayload = QuizQuestionDefinition::validate(
+            $questionType,
             $request->input('question_answer_options.'.$question->id),
             $request->input('question_correct_options.'.$question->id),
+            $request->input('question_true_false_correct.'.$question->id),
+            $request->input('question_accepted_answers.'.$question->id),
+            $request->input('question_answer_guide.'.$question->id),
         );
 
-        DB::transaction(function () use ($question, $payload, $answerPayload): void {
+        DB::transaction(function () use ($question, $payload, $questionType, $answerPayload): void {
             $question->update([
                 'prompt' => $payload['prompt'],
+                'question_type' => $questionType,
                 'points' => (int) $payload['points'],
                 'sort_order' => (int) $payload['sort_order'],
                 'last_edited_by' => auth()->id(),
@@ -552,19 +572,25 @@ class AdminController extends Controller
             ],
             'points' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sort_order' => ['nullable', 'integer', 'min:1'],
+            'question_type' => ['nullable', Rule::in(QuizQuestion::TYPES)],
         ], [
             'prompt.unique' => 'This question already exists in this quiz.',
         ]);
-        $answerPayload = QuizAnswerOptions::validate(
+        $questionType = $payload['question_type'] ?? 'multiple_choice';
+        $answerPayload = QuizQuestionDefinition::validate(
+            $questionType,
             $request->input('answer_options'),
             $request->input('correct_options'),
+            $request->input('true_false_correct'),
+            $request->input('accepted_answers'),
+            $request->input('answer_guide'),
         );
 
-        DB::transaction(function () use ($quiz, $payload, $answerPayload): void {
+        DB::transaction(function () use ($quiz, $payload, $questionType, $answerPayload): void {
             $question = QuizQuestion::create([
                 'quiz_id' => $quiz->id,
                 'prompt' => $payload['prompt'],
-                'question_type' => 'multiple_choice',
+                'question_type' => $questionType,
                 'points' => $payload['points'] ?? 10,
                 'sort_order' => $payload['sort_order'] ?? ((int) $quiz->questions()->max('sort_order') + 1 ?: 1),
             ]);
@@ -573,6 +599,57 @@ class AdminController extends Controller
         });
 
         return redirect()->route('admin.quizzes')->with('status', 'Question added to quiz.');
+    }
+
+    public function reviewQuizAttempt(Request $request, QuizAttempt $attempt, ReaderNotificationService $notifications): RedirectResponse
+    {
+        $attempt->load(['quiz.questions', 'user', 'responses.question']);
+        abort_unless($attempt->review_status === 'pending_review', 404);
+
+        $writtenResponses = $attempt->responses
+            ->filter(fn ($response) => $response->question?->question_type === 'written_response')
+            ->values();
+        $rules = ['points_awarded' => ['required', 'array']];
+        foreach ($writtenResponses as $response) {
+            $rules['points_awarded.'.$response->quiz_question_id] = [
+                'required', 'integer', 'min:0', 'max:'.(int) $response->question->points,
+            ];
+        }
+        $payload = $request->validate($rules);
+
+        DB::transaction(function () use ($attempt, $writtenResponses, $payload): void {
+            $lockedAttempt = QuizAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+            abort_unless($lockedAttempt->review_status === 'pending_review', 404);
+
+            foreach ($writtenResponses as $response) {
+                $response->update([
+                    'points_awarded' => (int) $payload['points_awarded'][$response->quiz_question_id],
+                    'reviewed_at' => now(),
+                ]);
+            }
+
+            $lockedAttempt->load(['quiz.questions', 'responses']);
+            $possiblePoints = (int) $lockedAttempt->quiz->questions->sum('points');
+            $earnedPoints = (int) $lockedAttempt->responses->sum('points_awarded');
+            $score = $possiblePoints > 0 ? (int) round(($earnedPoints / $possiblePoints) * 100) : 0;
+
+            $lockedAttempt->update([
+                'score' => $score,
+                'passed' => $score >= (int) $lockedAttempt->quiz->pass_mark,
+                'review_status' => 'graded',
+            ]);
+        });
+
+        $attempt->refresh()->load(['quiz', 'user']);
+        $notifications->send(
+            $attempt->user,
+            $attempt->passed ? 'quiz_passed' : 'quiz_failed',
+            $attempt->passed ? 'Quiz passed' : 'Quiz reviewed',
+            'Your written response for '.$attempt->quiz->title.' was reviewed. You scored '.$attempt->score.'%.',
+            ['quiz_id' => $attempt->quiz_id, 'attempt_id' => $attempt->id, 'score' => $attempt->score, 'passed' => $attempt->passed],
+        );
+
+        return redirect()->route('admin.quizzes')->with('status', 'Quiz attempt reviewed and score finalized.');
     }
 
     public function duels()

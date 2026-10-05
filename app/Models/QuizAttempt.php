@@ -11,6 +11,7 @@ class QuizAttempt extends Model
         'user_id',
         'score',
         'passed',
+        'review_status',
     ];
 
     public function quiz()
@@ -21,5 +22,10 @@ class QuizAttempt extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function responses()
+    {
+        return $this->hasMany(QuizAttemptResponse::class);
     }
 }

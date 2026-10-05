@@ -306,7 +306,7 @@
     "/api/quizzes/{quiz}/submit": {
       "post": {
         "tags": ["Quizzes"],
-        "summary": "Submit answers for a quiz",
+        "summary": "Submit choice or text responses; written explanations may need manual review",
         "security": [
           { "bearerAuth": [] }
         ],
@@ -679,9 +679,11 @@
           "published_quizzes_count": { "type": "integer" },
           "quiz_readers_count": { "type": "integer", "description": "Distinct readers with at least one attempt on this book's published quizzes." },
           "quiz_attempts_count": { "type": "integer" },
+          "quiz_pending_review_attempts_count": { "type": "integer" },
+          "quiz_graded_attempts_count": { "type": "integer" },
           "quiz_passed_attempts_count": { "type": "integer" },
-          "quiz_average_score": { "type": ["number", "null"], "description": "Average score percentage across quiz attempts." },
-          "quiz_pass_rate": { "type": ["number", "null"], "description": "Percentage of attempts that passed; null when no attempts exist." },
+          "quiz_average_score": { "type": ["number", "null"], "description": "Average score percentage across graded attempts; pending written responses are excluded." },
+          "quiz_pass_rate": { "type": ["number", "null"], "description": "Percentage of graded attempts that passed; null when no graded attempts exist." },
           "quiz_best_score": { "type": ["integer", "null"] },
           "status": { "type": "string" }
         }
@@ -728,8 +730,19 @@
         "properties": {
           "id": { "type": "integer" },
           "prompt": { "type": "string" },
+          "question_type": { "type": "string", "enum": ["single_choice", "multiple_choice", "true_false", "one_word", "short_answer", "written_response"] },
           "points": { "type": "integer" },
-          "allow_multiple_selection": { "type": "boolean", "description": "True when more than one choice is correct; submit every correct answer ID." },
+          "allow_multiple_selection": { "type": "boolean", "description": "True for multiple-choice questions; select every correct choice and no incorrect choices." },
+          "response_format": {
+            "type": "object",
+            "description": "Tells Android which response control to display. Expected answers and marking guides are never returned.",
+            "properties": {
+              "kind": { "type": "string", "enum": ["choice", "text", "textarea"] },
+              "max_length": { "type": "integer" },
+              "auto_graded": { "type": "boolean" },
+              "requires_review": { "type": "boolean" }
+            }
+          },
           "answers": { "type": "array", "items": { "$ref": "#/components/schemas/QuizAnswerSchema" } }
         }
       },
@@ -743,6 +756,16 @@
           "attempt_limit": { "type": "integer" },
           "attempts_used": { "type": "integer" },
           "best_score": { "type": "integer", "description": "This reader's best score as a percentage from 0 to 100." },
+          "latest_attempt": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": { "type": "integer" },
+              "review_status": { "type": "string", "enum": ["graded", "pending_review"] },
+              "score": { "type": ["integer", "null"] },
+              "passed": { "type": ["boolean", "null"] },
+              "submitted_at": { "type": "string", "format": "date-time" }
+            }
+          },
           "duration_minutes": { "type": "integer" },
           "performance": { "$ref": "#/components/schemas/QuizPerformanceSchema" },
           "questions": { "type": "array", "items": { "$ref": "#/components/schemas/QuestionSchema" } }
@@ -754,9 +777,11 @@
         "properties": {
           "readers_count": { "type": "integer" },
           "attempts_count": { "type": "integer" },
+          "pending_review_attempts_count": { "type": "integer" },
+          "graded_attempts_count": { "type": "integer" },
           "passed_attempts_count": { "type": "integer" },
-          "average_score": { "type": ["number", "null"] },
-          "pass_rate": { "type": ["number", "null"] },
+          "average_score": { "type": ["number", "null"], "description": "Average graded score; pending written responses are excluded." },
+          "pass_rate": { "type": ["number", "null"], "description": "Percentage of graded attempts that passed; null when none are graded." },
           "best_score": { "type": ["integer", "null"] }
         }
       },
@@ -785,6 +810,8 @@
               "published_quizzes_count": { "type": "integer" },
               "quiz_readers_count": { "type": "integer" },
               "quiz_attempts_count": { "type": "integer" },
+              "quiz_pending_review_attempts_count": { "type": "integer" },
+              "quiz_graded_attempts_count": { "type": "integer" },
               "quiz_passed_attempts_count": { "type": "integer" },
               "quiz_average_score": { "type": ["number", "null"] },
               "quiz_pass_rate": { "type": ["number", "null"] },
@@ -829,17 +856,18 @@
         "properties": {
           "answers": {
             "type": "object",
-            "description": "Map each question ID to the selected answer ID or to an array containing every selected answer ID. For questions with multiple correct choices, select all correct choices and no incorrect choices to earn points.",
+            "description": "Map each question ID to an answer ID, an array of selected answer IDs, or a text string. Use an array for multiple-choice questions. One-word and short answers are auto-marked against accepted variants; written_response answers are held for administrator review.",
             "additionalProperties": {
               "oneOf": [
-                { "type": "integer", "description": "Single selected answer ID." },
+                { "type": "integer", "description": "Selected answer ID for single-choice and true/false questions." },
                 {
                   "type": "array",
                   "minItems": 1,
                   "uniqueItems": true,
                   "items": { "type": "integer" },
                   "description": "Selected answer IDs; include every correct choice for multi-select questions."
-                }
+                },
+                { "type": "string", "maxLength": 5000, "description": "Typed response for one-word, short-answer, or written-response questions." }
               ]
             },
             "example": { "1": [3, 5] }
@@ -853,8 +881,9 @@
           "data": {
             "type": "object",
             "properties": {
-              "score": { "type": "integer" },
-              "passed": { "type": "boolean" },
+              "score": { "type": ["integer", "null"], "description": "Null until written responses are reviewed." },
+              "passed": { "type": ["boolean", "null"], "description": "Null until written responses are reviewed." },
+              "review_status": { "type": "string", "enum": ["graded", "pending_review"] },
               "attempt_id": { "type": "integer" },
               "attempts_used": { "type": "integer" }
             }

@@ -194,7 +194,7 @@
             </div>
 
             @forelse($book->quizzes as $quiz)
-                @php($stats = $quizStats[$quiz->id] ?? ['attempts' => 0, 'best_score' => 0])
+                @php($stats = $quizStats[$quiz->id] ?? ['attempts' => 0, 'pending_review' => 0, 'best_score' => 0])
                 <article class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -204,6 +204,7 @@
                         <div class="text-sm text-[#5e544d]">
                             <p>Your attempts: {{ $stats['attempts'] }} / {{ $quiz->attempt_limit }}</p>
                             <p>Your best score: {{ $stats['best_score'] }}%</p>
+                            @if($stats['pending_review'] > 0)<p>{{ $stats['pending_review'] }} awaiting written answer review</p>@endif
                             <p>All readers: {{ $quiz->readers_count }} · {{ $quiz->attempts_count }} attempts</p>
                             <p>Passed attempts: {{ $quiz->passed_attempts_count }} · Best score: {{ $quiz->best_score !== null ? (int) $quiz->best_score.'%' : '—' }}</p>
                             <p>Average: {{ $quiz->average_score !== null ? number_format((float) $quiz->average_score, 1).'%' : '—' }} · Pass rate: {{ $quiz->pass_rate !== null ? number_format($quiz->pass_rate, 1).'%' : '—' }}</p>
@@ -216,15 +217,31 @@
                             <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
                                 <p class="font-semibold text-[#1B0D05]">{{ $question->prompt }}</p>
                                 <p class="mt-1 text-xs text-[#786A5D]">Points: {{ $question->points }}</p>
-                                <p class="mt-1 text-xs text-[#786A5D]">Select all that apply.</p>
-                                <div class="mt-3 space-y-2">
-                                    @foreach($question->answers as $answer)
-                                        <label class="flex items-center gap-2 text-sm text-[#24150D]">
-                                            <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $answer->id }}">
-                                            <span>{{ $answer->body }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
+                                @if(in_array($question->question_type, ['one_word', 'short_answer', 'written_response'], true))
+                                    @if($question->question_type === 'one_word')
+                                        <input name="answers[{{ $question->id }}]" maxlength="100" required placeholder="Enter one word" class="mt-3 w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2">
+                                    @elseif($question->question_type === 'short_answer')
+                                        <textarea name="answers[{{ $question->id }}]" maxlength="1000" rows="2" required placeholder="Enter a short answer" class="mt-3 w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2"></textarea>
+                                        <p class="mt-1 text-xs text-[#786A5D]">Answers are checked without regard to case or punctuation.</p>
+                                    @else
+                                        <textarea name="answers[{{ $question->id }}]" maxlength="5000" rows="5" required placeholder="Write your explanation" class="mt-3 w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2"></textarea>
+                                        <p class="mt-1 text-xs text-[#786A5D]">An administrator will review this response before your score is finalized.</p>
+                                    @endif
+                                @else
+                                    <p class="mt-1 text-xs text-[#786A5D]">{{ $question->question_type === 'multiple_choice' ? 'Select all that apply.' : 'Select one answer.' }}</p>
+                                    <div class="mt-3 space-y-2">
+                                        @foreach($question->answers as $answer)
+                                            <label class="flex items-center gap-2 text-sm text-[#24150D]">
+                                                @if(in_array($question->question_type, ['single_choice', 'true_false'], true))
+                                                    <input type="radio" name="answers[{{ $question->id }}]" value="{{ $answer->id }}" required>
+                                                @else
+                                                    <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $answer->id }}">
+                                                @endif
+                                                <span>{{ $answer->body }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
 
