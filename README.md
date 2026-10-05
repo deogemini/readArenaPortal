@@ -15,21 +15,33 @@ Requirements: PHP 8.3+, Composer, Node.js, and a database supported by Laravel.
 
 For the Android emulator, use `http://10.0.2.2:8000/api` as the API base URL when the Laravel server runs on the development computer. A physical phone needs the computer's reachable LAN address, and a deployed app needs its HTTPS domain. Configure `APP_URL` to the externally reachable site URL so image and PDF links point back to the server.
 
-### Large book uploads on Ubuntu/Nginx
+### Large book uploads on Ubuntu/Apache
 
-Book PDFs can be up to 100 MiB by default (`BOOK_PDF_MAX_KB=102400`). `public/.user.ini` raises PHP-FPM's per-directory upload and POST limits to 100M and 110M. If this server setting is disabled or overridden by the PHP-FPM pool, set `upload_max_filesize=100M`, `post_max_size=110M`, and `memory_limit=256M` in `/etc/php/8.3/fpm/php.ini`.
+Book PDFs can be up to 100 MiB by default (`BOOK_PDF_MAX_KB=102400`). Apache must accept a request slightly larger than the PDF. Add this directive inside the site's active `<VirtualHost>` block:
 
-Nginx must also accept a request slightly larger than the allowed file. Add `client_max_body_size 120m;` inside this site's `server { ... }` block, then apply the configuration:
-
-```bash
-sudo nginx -t
-sudo systemctl restart php8.3-fpm
-sudo systemctl reload nginx
-cd /var/www/html/readArenaPortal
-php artisan config:clear
+```apache
+LimitRequestBody 125829120
 ```
 
-The application returns a readable HTTP 413 page if the effective server limit is still too low. If a request is rejected by Nginx before it reaches PHP, Laravel cannot render that page; the Nginx body-size directive must be updated.
+Set PHP's `upload_max_filesize=100M`, `post_max_size=110M`, and `memory_limit=256M` in the configuration for the PHP handler Apache actually uses:
+
+- PHP-FPM: `/etc/php/8.3/fpm/php.ini` (and check `/etc/php/8.3/fpm/pool.d/` for pool-level overrides).
+- Apache `mod_php`: `/etc/php/8.3/apache2/php.ini`.
+
+`public/.user.ini` applies to CGI/FastCGI PHP handlers, including PHP-FPM; it is ignored when PHP runs as an Apache module. The PHP POST limit must be higher than the file size because the multipart request also includes form data.
+
+To identify the handler, run `sudo apachectl -M | grep -E 'php_module|proxy_fcgi_module'`. After editing the configuration, validate Apache and apply the matching restarts:
+
+```bash
+sudo apachectl -t
+sudo systemctl reload apache2
+# If using PHP-FPM:
+sudo systemctl restart php8.3-fpm
+# If using mod_php, restart Apache instead of reloading it:
+sudo systemctl restart apache2
+```
+
+The application returns a readable HTTP 413 page if PHP's effective `post_max_size` is still too low. An Apache `LimitRequestBody` rejection happens before Laravel and needs to be diagnosed from Apache's error log.
 
 ## API reference
 
