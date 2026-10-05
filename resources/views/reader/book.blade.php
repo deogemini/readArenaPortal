@@ -183,6 +183,14 @@
         <section class="mt-8 space-y-6">
             <h2 class="font-serif text-3xl text-[#1B0D05]">Book Quiz</h2>
 
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#FBF6EA] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Published quizzes</p><p class="mt-1 text-xl font-semibold text-[#1B0D05]">{{ (int) $book->published_quizzes_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#FBF6EA] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Readers attempted</p><p class="mt-1 text-xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_readers_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#FBF6EA] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Total attempts</p><p class="mt-1 text-xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_attempts_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#FBF6EA] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Average score</p><p class="mt-1 text-xl font-semibold text-[#1B0D05]">{{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#FBF6EA] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Pass rate</p><p class="mt-1 text-xl font-semibold text-[#1B0D05]">{{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }}</p></div>
+            </div>
+
             @forelse($book->quizzes as $quiz)
                 @php($stats = $quizStats[$quiz->id] ?? ['attempts' => 0, 'best_score' => 0])
                 <article class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
@@ -192,8 +200,10 @@
                             <p class="mt-1 text-sm text-[#786A5D]">{{ $quiz->instructions ?: 'Answer the questions and earn points.' }}</p>
                         </div>
                         <div class="text-sm text-[#5e544d]">
-                            <p>Attempts: {{ $stats['attempts'] }} / {{ $quiz->attempt_limit }}</p>
-                            <p>Best score: {{ $stats['best_score'] }} pts</p>
+                            <p>Your attempts: {{ $stats['attempts'] }} / {{ $quiz->attempt_limit }}</p>
+                            <p>Your best score: {{ $stats['best_score'] }}%</p>
+                            <p>All readers: {{ $quiz->readers_count }} · {{ $quiz->attempts_count }} attempts</p>
+                            <p>Average: {{ $quiz->average_score !== null ? number_format((float) $quiz->average_score, 1).'%' : '—' }} · Pass rate: {{ $quiz->pass_rate !== null ? number_format($quiz->pass_rate, 1).'%' : '—' }}</p>
                         </div>
                     </div>
 

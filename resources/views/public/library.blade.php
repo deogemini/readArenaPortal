@@ -24,6 +24,7 @@
                         <h2 class="mt-2 font-serif text-2xl text-[#1B0D05]">{{ $book->title }}</h2>
                         <p class="mt-2 text-sm text-[#786A5D]">{{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
                         <p class="mt-3 text-sm leading-7 text-[#5e544d]">{{ Str::limit($book->description, 120) }}</p>
+                        <p class="mt-3 text-xs text-[#786A5D]">{{ (int) $book->published_quizzes_count }} published quizzes · {{ (int) $book->quiz_readers_count }} readers attempted</p>
                         <a href="/books/{{ $book->slug }}" class="mt-4 inline-flex rounded-full border border-[#d8c9ad] px-4 py-2 text-sm font-semibold text-[#1B0D05]">Read details</a>
                     </div>
                 </article>

@@ -105,16 +105,22 @@ class PublicController extends Controller
     public function library()
     {
         return view('public.library', [
-            'books' => Book::where('status', 'published')->latest()->paginate(9),
+            'books' => Book::query()->withQuizPerformanceStats()->with(['authors', 'genres'])
+                ->where('status', 'published')->latest()->paginate(9),
         ]);
     }
 
     public function book(string $slug)
     {
-        $book = Book::with(['authors', 'genres'])
+        $book = Book::query()->withQuizPerformanceStats()->with(['authors', 'genres'])
             ->where('slug', $slug)
             ->where('status', 'published')
             ->firstOrFail();
+        $quizzes = Quiz::query()->withPerformanceStats()->withCount('questions')
+            ->where('book_id', $book->id)
+            ->where('status', 'published')
+            ->orderBy('id')
+            ->get();
         $recommendations = Recommendation::with('user')
             ->where('book_id', $book->id)
             ->where('status', 'published')
@@ -133,7 +139,7 @@ class PublicController extends Controller
             ->where('status', 'published')
             ->avg('rating');
 
-        return view('public.book', compact('book', 'recommendations', 'reviews', 'reviewAverage'));
+        return view('public.book', compact('book', 'quizzes', 'recommendations', 'reviews', 'reviewAverage'));
     }
 
     public function proArena()

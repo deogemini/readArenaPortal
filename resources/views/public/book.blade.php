@@ -43,6 +43,43 @@
         </div>
     </main>
     <section class="mx-auto max-w-7xl px-6 pb-12 lg:px-8">
+        <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm sm:p-8">
+            <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Quiz activity</p>
+            <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">Reader performance for this book</h2>
+            <p class="mt-2 text-sm text-[#786A5D]">Aggregate results from published quizzes. Individual reader scores remain private.</p>
+
+            <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Published quizzes</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->published_quizzes_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Readers attempted</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_readers_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Total attempts</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_attempts_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Average score</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Pass rate</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }}</p></div>
+            </div>
+
+            @if($quizzes->isNotEmpty())
+                <div class="mt-8 space-y-3">
+                    <h3 class="font-serif text-2xl text-[#1B0D05]">Performance by quiz</h3>
+                    @foreach($quizzes as $quiz)
+                        <article class="rounded-[20px] border border-[#d8c9ad] bg-white p-5">
+                            <div class="flex flex-wrap items-start justify-between gap-4">
+                                <div><h4 class="font-semibold text-[#1B0D05]">{{ $quiz->title }}</h4><p class="mt-1 text-sm text-[#786A5D]">{{ $quiz->questions_count }} questions</p></div>
+                                <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#5e544d] sm:grid-cols-3 lg:grid-cols-5">
+                                    <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->readers_count }}</span> readers</p>
+                                    <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->attempts_count }}</span> attempts</p>
+                                    <p>Average: <span class="font-semibold text-[#1B0D05]">{{ $quiz->average_score !== null ? number_format((float) $quiz->average_score, 1).'%' : '—' }}</span></p>
+                                    <p>Pass rate: <span class="font-semibold text-[#1B0D05]">{{ $quiz->pass_rate !== null ? number_format($quiz->pass_rate, 1).'%' : '—' }}</span></p>
+                                    <p>Best: <span class="font-semibold text-[#1B0D05]">{{ $quiz->best_score !== null ? (int) $quiz->best_score.'%' : '—' }}</span></p>
+                                </div>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            @else
+                <p class="mt-6 rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4 text-sm text-[#786A5D]">No published quizzes for this book yet.</p>
+            @endif
+        </div>
+    </section>
+    <section class="mx-auto max-w-7xl px-6 pb-12 lg:px-8">
         <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
             <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Reader voices</p>
             <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">Recommendations for {{ $book->title }}</h2>

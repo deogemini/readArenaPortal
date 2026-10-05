@@ -675,6 +675,13 @@
           "reader_count": { "type": "integer" },
           "completed_count": { "type": "integer" },
           "duels_count": { "type": "integer" },
+          "published_quizzes_count": { "type": "integer" },
+          "quiz_readers_count": { "type": "integer", "description": "Distinct readers with at least one attempt on this book's published quizzes." },
+          "quiz_attempts_count": { "type": "integer" },
+          "quiz_passed_attempts_count": { "type": "integer" },
+          "quiz_average_score": { "type": ["number", "null"], "description": "Average score percentage across quiz attempts." },
+          "quiz_pass_rate": { "type": ["number", "null"], "description": "Percentage of attempts that passed; null when no attempts exist." },
+          "quiz_best_score": { "type": ["integer", "null"] },
           "status": { "type": "string" }
         }
       },
@@ -736,7 +743,20 @@
           "attempts_used": { "type": "integer" },
           "best_score": { "type": "integer", "description": "This reader's best score as a percentage from 0 to 100." },
           "duration_minutes": { "type": "integer" },
+          "performance": { "$ref": "#/components/schemas/QuizPerformanceSchema" },
           "questions": { "type": "array", "items": { "$ref": "#/components/schemas/QuestionSchema" } }
+        }
+      },
+      "QuizPerformanceSchema": {
+        "type": "object",
+        "description": "Public aggregate results; no individual reader scores or identities are disclosed.",
+        "properties": {
+          "readers_count": { "type": "integer" },
+          "attempts_count": { "type": "integer" },
+          "passed_attempts_count": { "type": "integer" },
+          "average_score": { "type": ["number", "null"] },
+          "pass_rate": { "type": ["number", "null"] },
+          "best_score": { "type": ["integer", "null"] }
         }
       },
       "QuizDetailResponse": {
@@ -760,6 +780,13 @@
               "authors": { "type": "array", "items": { "type": "string" } },
               "genres": { "type": "array", "items": { "type": "string" } },
               "publisher": { "type": ["string", "null"] },
+              "published_quizzes_count": { "type": "integer" },
+              "quiz_readers_count": { "type": "integer" },
+              "quiz_attempts_count": { "type": "integer" },
+              "quiz_passed_attempts_count": { "type": "integer" },
+              "quiz_average_score": { "type": ["number", "null"] },
+              "quiz_pass_rate": { "type": ["number", "null"] },
+              "quiz_best_score": { "type": ["integer", "null"] },
               "publication_year": { "type": "integer" },
               "page_count": { "type": "integer" },
               "language": { "type": "string" },

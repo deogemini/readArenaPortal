@@ -41,7 +41,7 @@ class ReaderController extends Controller
         $verifiedBooks = app(DuelService::class)->verifiedBooks(auth()->user());
 
         return view('reader.dashboard', [
-            'books' => Book::with(['authors', 'genres'])
+            'books' => Book::query()->withQuizPerformanceStats()->with(['authors', 'genres'])
                 ->withCount(['quizzes' => fn ($quizzes) => $quizzes->where('status', 'published')])
                 ->where('status', 'published')->latest()->take(6)->get(),
             'goals' => ReadingGoal::where('user_id', $readerId)->latest()->take(3)->get(),
@@ -61,15 +61,15 @@ class ReaderController extends Controller
     public function library()
     {
         return view('reader.library', [
-            'books' => Book::with(['authors', 'genres'])->where('status', 'published')->latest()->paginate(9),
+            'books' => Book::query()->withQuizPerformanceStats()->with(['authors', 'genres'])->where('status', 'published')->latest()->paginate(9),
             'shelves' => ReaderShelf::query()->where('user_id', auth()->id())->get()->keyBy('book_id'),
         ]);
     }
 
     public function book(string $slug)
     {
-        $book = Book::with(['authors', 'genres', 'quizzes' => function ($query) {
-            $query->where('status', 'published')->with(['questions.answers']);
+        $book = Book::query()->withQuizPerformanceStats()->with(['authors', 'genres', 'quizzes' => function ($query) {
+            $query->where('status', 'published')->withPerformanceStats()->withCount('questions')->with(['questions.answers']);
         }])->where('slug', $slug)->where('status', 'published')->firstOrFail();
 
         $readerId = auth()->id();

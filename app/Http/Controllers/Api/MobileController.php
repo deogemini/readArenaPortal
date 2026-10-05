@@ -64,7 +64,7 @@ class MobileController extends Controller
                 'continue_reading' => ReadingProgress::query()
                     ->where('user_id', $user->id)
                     ->whereHas('book', fn ($query) => $query->where('status', 'published'))
-                    ->with(['book.authors', 'book.genres', 'book.publisher'])
+                    ->with(['book' => fn ($book) => $book->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher'])])
                     ->orderByDesc('last_opened_at')
                     ->limit(5)
                     ->get()
@@ -99,6 +99,7 @@ class MobileController extends Controller
                     ->get()
                     ->map(fn (Recommendation $recommendation) => $this->recommendationData($recommendation)),
                 'featured_books' => Book::query()
+                    ->withQuizPerformanceStats()
                     ->where('status', 'published')
                     ->where('featured', true)
                     ->with(['authors', 'genres', 'publisher'])
@@ -277,6 +278,7 @@ class MobileController extends Controller
         ]);
 
         $query = Book::query()
+            ->withQuizPerformanceStats()
             ->where('status', 'published')
             ->with(['authors', 'genres', 'publisher'])
             ->withCount([
@@ -370,11 +372,12 @@ class MobileController extends Controller
 
     public function showBook(Request $request, Book $book)
     {
+        $book = Book::query()->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher', 'quizzes' => function ($query) {
+            $query->where('status', 'published')
+                ->withPerformanceStats()
+                ->with(['questions' => fn ($questions) => $questions->orderBy('sort_order')->with('answers')]);
+        }])->whereKey($book->id)->firstOrFail();
         abort_unless($book->status === 'published', 404);
-
-        $book->load(['authors', 'genres', 'publisher', 'quizzes' => function ($query) {
-            $query->where('status', 'published')->with(['questions' => fn ($questions) => $questions->orderBy('sort_order')->with('answers')]);
-        }]);
 
         $progress = ReadingProgress::query()
             ->where('user_id', $request->user()->id)
@@ -399,7 +402,7 @@ class MobileController extends Controller
         $progress = ReadingProgress::query()
             ->where('user_id', $request->user()->id)
             ->whereHas('book', fn ($query) => $query->where('status', 'published'))
-            ->with(['book.authors', 'book.genres', 'book.publisher'])
+            ->with(['book' => fn ($book) => $book->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher'])])
             ->orderByDesc('last_progress_at')
             ->get()
             ->map(fn (ReadingProgress $item) => $this->progressData($item));
@@ -412,7 +415,7 @@ class MobileController extends Controller
         $items = ReaderShelf::query()
             ->where('user_id', $request->user()->id)
             ->whereHas('book', fn ($books) => $books->where('status', 'published'))
-            ->with(['book.authors', 'book.genres', 'book.publisher'])
+            ->with(['book' => fn ($book) => $book->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher'])])
             ->latest()
             ->get()
             ->map(fn (ReaderShelf $item) => [
@@ -446,7 +449,7 @@ class MobileController extends Controller
     {
         $items = Bookmark::query()
             ->where('user_id', $request->user()->id)
-            ->with(['book.authors', 'book.genres', 'book.publisher'])
+            ->with(['book' => fn ($book) => $book->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher'])])
             ->orderBy('book_id')
             ->orderBy('page_number')
             ->get()
@@ -972,7 +975,10 @@ class MobileController extends Controller
 
     public function showQuiz(Request $request, Quiz $quiz)
     {
-        $quiz->load(['book', 'questions' => fn ($questions) => $questions->orderBy('sort_order')->with('answers')]);
+        $quiz = Quiz::query()->withPerformanceStats()->with([
+            'book',
+            'questions' => fn ($questions) => $questions->orderBy('sort_order')->with('answers'),
+        ])->whereKey($quiz->id)->firstOrFail();
         abort_unless($quiz->status === 'published' && $quiz->book?->status === 'published', 404);
 
         return response()->json(['data' => $this->quizData($quiz, $request->user())]);
@@ -1092,6 +1098,13 @@ class MobileController extends Controller
             'reader_count' => (int) ($book->reader_count ?? 0),
             'completed_count' => (int) ($book->completed_count ?? 0),
             'duels_count' => (int) ($book->duels_count ?? 0),
+            'published_quizzes_count' => (int) ($book->published_quizzes_count ?? 0),
+            'quiz_readers_count' => (int) ($book->quiz_readers_count ?? 0),
+            'quiz_attempts_count' => (int) ($book->quiz_attempts_count ?? 0),
+            'quiz_passed_attempts_count' => (int) ($book->quiz_passed_attempts_count ?? 0),
+            'quiz_average_score' => $book->quiz_average_score !== null ? round((float) $book->quiz_average_score, 1) : null,
+            'quiz_pass_rate' => $book->quiz_pass_rate,
+            'quiz_best_score' => $book->quiz_best_score !== null ? (int) $book->quiz_best_score : null,
             'status' => $book->status,
         ];
     }
@@ -1111,8 +1124,8 @@ class MobileController extends Controller
 
     private function progressData(ReadingProgress $progress): array
     {
-        if (! $progress->relationLoaded('book') && $progress->book_id) {
-            $progress->load(['book.authors', 'book.genres', 'book.publisher']);
+        if ($progress->book_id && (! $progress->relationLoaded('book') || ! array_key_exists('published_quizzes_count', $progress->book?->getAttributes() ?? []))) {
+            $progress->load(['book' => fn ($book) => $book->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher'])]);
         }
 
         return [
@@ -1127,8 +1140,8 @@ class MobileController extends Controller
 
     private function bookmarkData(Bookmark $bookmark): array
     {
-        if (! $bookmark->relationLoaded('book')) {
-            $bookmark->load(['book.authors', 'book.genres', 'book.publisher']);
+        if (! $bookmark->relationLoaded('book') || ! array_key_exists('published_quizzes_count', $bookmark->book?->getAttributes() ?? [])) {
+            $bookmark->load(['book' => fn ($book) => $book->withQuizPerformanceStats()->with(['authors', 'genres', 'publisher'])]);
         }
 
         return [
@@ -1278,6 +1291,14 @@ class MobileController extends Controller
             'attempts_used' => (clone $attempts)->count(),
             'best_score' => (int) ((clone $attempts)->max('score') ?? 0),
             'duration_minutes' => (int) $quiz->duration_minutes,
+            'performance' => [
+                'readers_count' => (int) ($quiz->readers_count ?? 0),
+                'attempts_count' => (int) ($quiz->attempts_count ?? 0),
+                'passed_attempts_count' => (int) ($quiz->passed_attempts_count ?? 0),
+                'average_score' => $quiz->average_score !== null ? round((float) $quiz->average_score, 1) : null,
+                'pass_rate' => $quiz->pass_rate,
+                'best_score' => $quiz->best_score !== null ? (int) $quiz->best_score : null,
+            ],
             'questions' => $quiz->questions->map(fn ($question) => [
                 'id' => $question->id,
                 'prompt' => $question->prompt,
