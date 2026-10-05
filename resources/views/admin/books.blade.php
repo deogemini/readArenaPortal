@@ -55,8 +55,8 @@
                 @endif
 
                 <section class="mb-6 rounded-[20px] border border-[#3d261b] bg-[#2B170D] p-6">
-                    <h2 class="font-serif text-2xl">Upload Book</h2>
-                    <form action="{{ route('admin.books.store') }}" method="POST" enctype="multipart/form-data" class="mt-5 grid gap-4 md:grid-cols-2">
+                    <h2 class="font-serif text-2xl">Add Book Details</h2>
+                    <form action="{{ route('admin.books.store') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-2">
                         @csrf
                         <input name="title" value="{{ old('title') }}" placeholder="Book title" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                         <input name="author_name" value="{{ old('author_name') }}" placeholder="Author name" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
@@ -67,10 +67,6 @@
                         <input name="language" value="{{ old('language', 'en') }}" placeholder="Language code (en)" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                         <input name="isbn" value="{{ old('isbn') }}" placeholder="ISBN" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                         <input name="cover_image" value="{{ old('cover_image') }}" placeholder="Cover image URL" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 md:col-span-2">
-                        <div class="md:col-span-2">
-                            <input type="file" name="pdf_file" accept="application/pdf" required class="w-full rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
-                            <p class="mt-1 text-xs text-[#d8c9ad]">PDF required. Maximum file size: {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB.</p>
-                        </div>
                         <textarea name="description" placeholder="Description" rows="4" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 md:col-span-2">{{ old('description') }}</textarea>
                         <select name="status" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                             <option value="draft" @selected(old('status', 'draft') === 'draft')>Draft</option>
@@ -81,7 +77,8 @@
                             Mark as featured
                         </label>
                         <div class="md:col-span-2">
-                            <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Upload book</button>
+                            <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Save book details</button>
+                            <p class="mt-2 text-xs text-[#d8c9ad]">The PDF uploads separately after the book is saved, so a failed file upload will not lose these details.</p>
                         </div>
                     </form>
                 </section>
@@ -112,12 +109,20 @@
                                 <td class="px-4 py-3">{{ $book->publication_year ?? '-' }}</td>
                                 <td class="px-4 py-3">{{ ucfirst($book->status ?? 'draft') }}</td>
                                 <td class="px-4 py-3">{{ $book->featured ? 'Yes' : 'No' }}</td>
-                                <td class="px-4 py-3">{{ $book->pdf_path ? 'Uploaded' : 'Missing' }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="mb-2">{{ $book->pdf_path ? 'PDF uploaded' : 'PDF missing' }}</div>
+                                    <form action="{{ route('admin.books.pdf.store', $book) }}" method="POST" enctype="multipart/form-data" class="min-w-44 space-y-2">
+                                        @csrf
+                                        <input type="file" name="pdf_file" accept="application/pdf" required class="block w-52 max-w-full rounded-lg border border-[#3d261b] bg-[#2B170D] px-2 py-1 text-xs">
+                                        <button class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $book->pdf_path ? 'Replace PDF' : 'Upload PDF' }}</button>
+                                        <p class="text-xs text-[#d8c9ad]">PDF only, up to {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB.</p>
+                                    </form>
+                                </td>
                                 <td class="px-4 py-3">{{ optional($book->created_at)->format('Y-m-d') }}</td>
                                 <td class="px-4 py-3">
                                     <details class="mb-2">
                                         <summary class="cursor-pointer rounded-full border border-[#d8c9ad] px-3 py-1 text-center text-xs">Edit</summary>
-                                        <form action="{{ route('admin.books.update', $book) }}" method="POST" enctype="multipart/form-data" class="mt-3 grid min-w-64 gap-2 rounded-xl border border-[#3d261b] bg-[#2B170D] p-3">
+                                        <form action="{{ route('admin.books.update', $book) }}" method="POST" class="mt-3 grid min-w-64 gap-2 rounded-xl border border-[#3d261b] bg-[#2B170D] p-3">
                                             @csrf @method('PATCH')
                                             <input name="title" value="{{ $book->title }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Title">
                                             <input name="author_name" value="{{ $book->authors->first()?->name }}" required class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Author">
@@ -129,8 +134,6 @@
                                             <input name="isbn" value="{{ $book->isbn }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="ISBN">
                                             <input name="cover_image" value="{{ $book->cover_image }}" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Cover URL">
                                             <textarea name="description" rows="3" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs" placeholder="Description">{{ $book->description }}</textarea>
-                                            <input type="file" name="pdf_file" accept="application/pdf" class="w-full rounded-lg bg-[#1B0D05] px-3 py-2 text-xs">
-                                            <p class="text-xs text-[#d8c9ad]">Optional PDF replacement, up to {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB.</p>
                                             <select name="status" class="rounded-lg bg-[#1B0D05] px-3 py-2 text-xs"><option value="draft" @selected($book->status === 'draft')>Draft</option><option value="published" @selected($book->status === 'published')>Published</option></select>
                                             <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="featured" value="1" @checked($book->featured)> Featured</label>
                                             <button class="rounded-full bg-[#D8A83E] px-3 py-2 text-xs font-semibold text-[#1B0D05]">Save book</button>

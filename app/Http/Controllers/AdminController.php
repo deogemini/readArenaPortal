@@ -165,9 +165,6 @@ class AdminController extends Controller
 
     public function storeBook(Request $request): RedirectResponse
     {
-        $maximumPdfSizeKb = (int) config('uploads.book_pdf_max_kb', 102400);
-        $maximumPdfSizeMb = (int) ceil($maximumPdfSizeKb / 1024);
-
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -179,16 +176,9 @@ class AdminController extends Controller
             'language' => ['nullable', 'string', 'max:10'],
             'isbn' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'url'],
-            'pdf_file' => ['required', 'file', 'mimes:pdf', 'max:'.$maximumPdfSizeKb],
             'status' => ['nullable', 'in:draft,published'],
             'featured' => ['nullable', 'boolean'],
-        ], [
-            'pdf_file.required' => 'PDF is required. If you selected a file, it may exceed the upload limit.',
-            'pdf_file.mimes' => 'Only PDF files are allowed.',
-            'pdf_file.max' => 'PDF must be '.$maximumPdfSizeMb.'MB or smaller.',
         ]);
-
-        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'local');
 
         $publisher = Publisher::firstOrCreate([
             'name' => $payload['publisher_name'] ?? 'Independent Press',
@@ -204,7 +194,7 @@ class AdminController extends Controller
             'language' => $payload['language'] ?? 'en',
             'isbn' => $payload['isbn'] ?? null,
             'cover_image' => $payload['cover_image'] ?? null,
-            'pdf_path' => $pdfPath,
+            'pdf_path' => null,
             'featured' => (bool) ($payload['featured'] ?? false),
             'status' => $payload['status'] ?? 'draft',
         ]);
@@ -218,7 +208,39 @@ class AdminController extends Controller
         $book->authors()->syncWithoutDetaching([$author->id]);
         $book->genres()->syncWithoutDetaching([$genre->id]);
 
-        return redirect()->route('admin.books')->with('status', 'Book uploaded successfully.');
+        return redirect()->route('admin.books')->with('status', 'Book details saved. Upload its PDF from the books list when ready.');
+    }
+
+    public function uploadBookPdf(Request $request, Book $book): RedirectResponse
+    {
+        $maximumPdfSizeKb = (int) config('uploads.book_pdf_max_kb', 102400);
+        $maximumPdfSizeMb = (int) ceil($maximumPdfSizeKb / 1024);
+
+        $request->validate([
+            'pdf_file' => ['required', 'file', 'mimes:pdf', 'max:'.$maximumPdfSizeKb],
+        ], [
+            'pdf_file.required' => 'Choose a PDF file to upload.',
+            'pdf_file.mimes' => 'Only PDF files are allowed.',
+            'pdf_file.max' => 'PDF must be '.$maximumPdfSizeMb.'MB or smaller.',
+        ]);
+
+        $oldPath = $book->pdf_path;
+        $pdfPath = $request->file('pdf_file')->store('books/pdfs', 'local');
+
+        if (! $pdfPath) {
+            return redirect()->route('admin.books')->withErrors([
+                'pdf_file' => 'The PDF could not be saved. Please try again.',
+            ]);
+        }
+
+        $book->update(['pdf_path' => $pdfPath]);
+
+        if ($oldPath) {
+            Storage::disk('local')->delete($oldPath);
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return redirect()->route('admin.books')->with('status', 'PDF uploaded for "'.$book->title.'".');
     }
 
     public function destroyBook(Book $book): RedirectResponse
@@ -241,9 +263,6 @@ class AdminController extends Controller
 
     public function updateBook(Request $request, Book $book): RedirectResponse
     {
-        $maximumPdfSizeKb = (int) config('uploads.book_pdf_max_kb', 102400);
-        $maximumPdfSizeMb = (int) ceil($maximumPdfSizeKb / 1024);
-
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -255,11 +274,8 @@ class AdminController extends Controller
             'language' => ['nullable', 'string', 'max:10'],
             'isbn' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'url'],
-            'pdf_file' => ['nullable', 'file', 'mimes:pdf', 'max:'.$maximumPdfSizeKb],
             'status' => ['required', 'in:draft,published'],
             'featured' => ['nullable', 'boolean'],
-        ], [
-            'pdf_file.max' => 'PDF must be '.$maximumPdfSizeMb.'MB or smaller.',
         ]);
 
         $publisher = Publisher::firstOrCreate(['name' => $payload['publisher_name'] ?: 'Independent Press']);
@@ -276,15 +292,6 @@ class AdminController extends Controller
             'featured' => (bool) ($payload['featured'] ?? false),
             'status' => $payload['status'],
         ];
-
-        if ($request->hasFile('pdf_file')) {
-            $oldPath = $book->pdf_path;
-            $data['pdf_path'] = $request->file('pdf_file')->store('books/pdfs', 'local');
-            if ($oldPath) {
-                Storage::disk('local')->delete($oldPath);
-                Storage::disk('public')->delete($oldPath);
-            }
-        }
 
         $book->update($data);
         $book->authors()->sync([Author::firstOrCreate(['name' => $payload['author_name']])->id]);

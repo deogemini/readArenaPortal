@@ -27,10 +27,16 @@ test('administrators can create update and delete books and their uploaded PDF',
         'language' => 'en',
         'isbn' => '9781111111111',
         'status' => 'draft',
-        'pdf_file' => UploadedFile::fake()->create('novel.pdf', 10, 'application/pdf'),
     ])->assertRedirect(route('admin.books'));
 
     $book = Book::where('title', 'A New Novel')->firstOrFail();
+    expect($book->pdf_path)->toBeNull();
+
+    $this->actingAs($admin)->post(route('admin.books.pdf.store', $book), [
+        'pdf_file' => UploadedFile::fake()->create('novel.pdf', 10, 'application/pdf'),
+    ])->assertRedirect(route('admin.books'));
+
+    $book->refresh();
     Storage::disk('local')->assertExists($book->pdf_path);
 
     $this->actingAs($admin)->patch(route('admin.books.update', $book), [
@@ -68,22 +74,39 @@ test('administrators can upload a PDF larger than the previous 3MB limit', funct
         'author_name' => 'A. Writer',
         'genre_name' => 'Literary Fiction',
         'status' => 'draft',
-        'pdf_file' => UploadedFile::fake()->create('larger-novel.pdf', 4096, 'application/pdf'),
     ])->assertRedirect(route('admin.books'));
 
     $book = Book::where('title', 'A Larger Novel')->firstOrFail();
+    $this->actingAs($admin)->post(route('admin.books.pdf.store', $book), [
+        'pdf_file' => UploadedFile::fake()->create('larger-novel.pdf', 4096, 'application/pdf'),
+    ])->assertRedirect(route('admin.books'));
+
+    expect($book->fresh()->title)->toBe('A Larger Novel');
+    $book->refresh();
     Storage::disk('local')->assertExists($book->pdf_path);
 });
 
-test('oversized requests receive a readable 413 response instead of the exception debug page', function () {
+test('an oversized PDF request leaves the previously saved book details intact', function () {
     $admin = User::factory()->admin()->create();
+    $this->actingAs($admin)->post(route('admin.books.store'), [
+        'title' => 'Saved Before PDF',
+        'author_name' => 'A. Writer',
+        'genre_name' => 'Literary Fiction',
+        'description' => 'These details must survive a failed PDF upload.',
+        'status' => 'draft',
+    ])->assertRedirect(route('admin.books'));
+
+    $book = Book::where('title', 'Saved Before PDF')->firstOrFail();
 
     $this->withServerVariables(['CONTENT_LENGTH' => '9999999999'])
         ->actingAs($admin)
-        ->post(route('admin.books.store'), [])
+        ->post(route('admin.books.pdf.store', $book), [])
         ->assertStatus(413)
         ->assertSee('This upload is too large.')
         ->assertSee('Book PDFs may be up to 100MB.');
+
+    expect($book->fresh()->description)->toBe('These details must survive a failed PDF upload.')
+        ->and($book->fresh()->pdf_path)->toBeNull();
 });
 
 test('administrators can create update and delete quizzes and questions', function () {
