@@ -31,6 +31,8 @@ class Book extends Model
             ->whereColumn('quizzes.book_id', 'books.id')
             ->where('quizzes.status', 'published');
         $attempts = static fn () => DB::table('quiz_attempts')
+            ->join('users', 'users.id', '=', 'quiz_attempts.user_id')
+            ->where('users.role', 'reader')
             ->whereIn('quiz_attempts.quiz_id', $publishedQuizIds());
         $gradedAttempts = static fn () => $attempts()->where('quiz_attempts.review_status', 'graded');
 

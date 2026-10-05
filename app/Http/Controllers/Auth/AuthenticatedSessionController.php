@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\UserActivityRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,7 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        app(UserActivityRecorder::class)->record($request->user(), 'signed_in', 'web_portal');
 
         $defaultRoute = auth()->user()->isAdmin()
             ? route('admin.dashboard', absolute: false)
@@ -42,6 +44,10 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        if ($user = $request->user()) {
+            app(UserActivityRecorder::class)->record($user, 'signed_out', 'web_portal', false);
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

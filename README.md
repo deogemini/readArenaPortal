@@ -15,6 +15,8 @@ Requirements: PHP 8.3+, Composer, Node.js, and a database supported by Laravel.
 
 For the Android emulator, use `http://10.0.2.2:8000/api` as the API base URL when the Laravel server runs on the development computer. A physical phone needs the computer's reachable LAN address, and a deployed app needs its HTTPS domain. Configure `APP_URL` to the externally reachable site URL so image and PDF links point back to the server.
 
+The admin **Users** page is a near-real-time activity dashboard. It refreshes every five seconds and shows recent sign-ins and reader actions from both the web portal and Android API, plus online presence (a user is considered online for two minutes after their last authenticated request). Apply pending database migrations after deploying so the activity table and presence fields are available.
+
 ### Large book uploads on Ubuntu/Apache
 
 Book PDFs can be up to 100 MiB by default (`BOOK_PDF_MAX_KB=102400`). Apache must accept a request slightly larger than the PDF. Add this directive inside the site's active `<VirtualHost>` block:
@@ -49,7 +51,7 @@ Open the interactive Swagger UI at `/api/documentation`. The OpenAPI JSON is at 
 
 Swagger lists every registered Android API operation. Select Production, Local development, or Android emulator as the server at the top of the page. The production base URL is `https://arenayakusoma.eportsolutions.co.tz/api`.
 
-All API paths below are relative to the `/api` base URL. Except for authentication and documentation routes, send the token returned by register or login on every request:
+All API paths below are relative to the `/api` base URL. Except for authentication, documentation, and the public quiz-performance endpoint, send the token returned by register or login on every request:
 
 ```http
 Authorization: Bearer YOUR_TOKEN
@@ -115,7 +117,7 @@ Register accepts `name`, `email`, `password`, `password_confirmation`, optional 
 
 Questions are stored in the same database the API reads, so they do not need a separate push or sync. For Android access, publish the related book first, then publish its quiz. Questions created by an author remain in a draft quiz until an administrator publishes it.
 
-After signing in and adding the returned Sanctum token as a bearer token, the app can call `GET /api/books` for book summaries, `GET /api/books/{book_id}` for a book and its published quizzes, or `GET /api/quizzes/{quiz_id}` to load one quiz directly. These responses include aggregate quiz activity and performance for the book and each quiz. Each question includes its ID and answer choices; `allow_multiple_selection` tells the app to render multi-select controls. Draft or unpublished books and quizzes are intentionally omitted or return `404`.
+The app can call `GET /api/public/books/{book_id}/quiz-performance` without signing in to get a published book's quiz count and aggregate reader performance, including per-quiz reader counts, attempts, averages, pass rates, and best scores. The public endpoint never returns reader identities or individual scores. After signing in and adding the returned Sanctum token as a bearer token, the app can also call `GET /api/books` for book summaries, `GET /api/books/{book_id}` for a book and its published quizzes, or `GET /api/quizzes/{quiz_id}` to load one quiz directly. These responses include aggregate quiz activity and performance for the book and each quiz. Each question includes `question_type` and `response_format`; choice questions include options, while text questions do not expose accepted answers or marking guides. `latest_attempt` lets Android refresh a pending written response and see its finalized result. Draft or unpublished books and quizzes are intentionally omitted or return `404`.
 
 Submit every question's selected answer IDs to `POST /api/quizzes/{quiz_id}/submit`. For example:
 
@@ -134,7 +136,7 @@ Book search supports `q`, `genre` (slug or name), `author`, `publisher`, `langua
 
 Reader content may be saved as a private draft without quiz verification. Publishing a lesson, recommendation, duel challenge, or show guest application requires a passing attempt for the same published book. Duel invitations support pending, accepted, rejected, and cancelled states. Guest application quiz scores are derived from the reader's best passing attempt, never accepted from client input. The leaderboard adds the best passing score once per published quiz in the chosen period.
 
-Quiz submission returns `score` as a percentage from 0 to 100, `passed`, the saved `attempt_id`, and `attempts_used`. Quiz answer maps use question IDs as object keys and one or more selected answer IDs as values.
+Quiz submission returns `score` as a percentage from 0 to 100, `passed`, the saved `attempt_id`, `attempts_used`, and `review_status`. For `written_response`, score and pass state are null until an administrator reviews the response. Submit one or more selected answer IDs for choice questions and a string for text questions.
 
 In-app notifications are created for quiz results, duel invitations and responses, and show RSVP confirmations. Notification preferences can suppress each supported type. Email and push delivery are not wired to these API events yet.
 

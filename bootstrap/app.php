@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureAdmin::class,
             'reader' => \App\Http\Middleware\EnsureReader::class,
             'author' => \App\Http\Middleware\EnsureAuthor::class,
+            'track.user.activity' => \App\Http\Middleware\TrackUserActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

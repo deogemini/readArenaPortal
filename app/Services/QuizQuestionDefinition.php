@@ -76,9 +76,13 @@ class QuizQuestionDefinition
         $payload = Validator::make(['answer_guide' => $answerGuide], [
             'answer_guide' => ['required', 'string', 'max:5000'],
         ], ['answer_guide.required' => 'Provide a marking guide for written responses.'])->validate();
+        $guide = trim($payload['answer_guide']);
+        if ($guide === '') {
+            throw ValidationException::withMessages(['answer_guide' => 'Provide a marking guide for written responses.']);
+        }
 
         return [
-            'options' => [['body' => trim($payload['answer_guide'])]],
+            'options' => [['body' => $guide]],
             'correct_indices' => [0],
         ];
     }

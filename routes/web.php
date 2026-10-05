@@ -16,7 +16,7 @@ Route::get('/pro-arena', [PublicController::class, 'proArena'])->name('pro-arena
 Route::get('/leaderboard', [PublicController::class, 'leaderboard'])->name('leaderboard');
 Route::get('/books/{slug}', [PublicController::class, 'book'])->name('books.show');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'track.user.activity'])->group(function () {
     Route::get('/dashboard', function () {
         $user = auth()->user();
 
@@ -32,7 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('dashboard');
 });
 
-Route::middleware(['auth', 'verified', 'reader'])->group(function () {
+Route::middleware(['auth', 'verified', 'reader', 'track.user.activity'])->group(function () {
     Route::get('/reader/dashboard', [ReaderController::class, 'dashboard'])->name('reader.dashboard');
     Route::get('/reader/library', [ReaderController::class, 'library'])->name('reader.library');
     Route::get('/reader/books/{slug}/content', [ReaderController::class, 'streamBookContent'])->name('reader.books.content');
@@ -70,12 +70,13 @@ Route::middleware(['auth', 'verified', 'reader'])->group(function () {
     Route::delete('/reader/show-applications/{application}', [ReaderController::class, 'withdrawShowApplication'])->name('reader.show-applications.destroy');
 });
 
-Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'verified', 'admin', 'track.user.activity'])->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.dashboard');
     Route::post('/competition-videos', [AdminController::class, 'storeCompetitionVideo'])->name('admin.competition-videos.store');
     Route::patch('/competition-videos/{competitionVideo}', [AdminController::class, 'updateCompetitionVideo'])->name('admin.competition-videos.update');
     Route::delete('/competition-videos/{competitionVideo}', [AdminController::class, 'destroyCompetitionVideo'])->name('admin.competition-videos.destroy');
     Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+    Route::get('/users/activity', [AdminController::class, 'userActivitySnapshot'])->name('admin.users.activity');
     Route::get('/books', [AdminController::class, 'books'])->name('admin.books');
     Route::post('/books', [AdminController::class, 'storeBook'])->name('admin.books.store');
     Route::post('/books/{book}/pdf', [AdminController::class, 'uploadBookPdf'])->name('admin.books.pdf.store');
@@ -107,13 +108,13 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::post('/settings/sms-gateway', [AdminController::class, 'updateSmsGatewaySettings'])->name('admin.settings.sms-gateway.update');
 });
 
-Route::middleware(['auth', 'verified', 'author'])->prefix('author')->group(function () {
+Route::middleware(['auth', 'verified', 'author', 'track.user.activity'])->prefix('author')->group(function () {
     Route::get('/dashboard', [AuthorController::class, 'dashboard'])->name('author.dashboard');
     Route::post('/books', [AuthorController::class, 'storeBook'])->name('author.books.store');
     Route::post('/quizzes', [AuthorController::class, 'storeQuiz'])->name('author.quizzes.store');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'track.user.activity'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ApiDocsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileController;
+use App\Http\Controllers\Api\PublicBookPerformanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/documentation', [ApiDocsController::class, 'index']);
@@ -16,8 +17,10 @@ Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
 
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+Route::get('/public/books/{book}/quiz-performance', [PublicBookPerformanceController::class, 'show'])
+    ->middleware('throttle:60,1');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'track.user.activity'])->group(function () {
     Route::post('/auth/logout', [MobileController::class, 'logout']);
     Route::get('/dashboard', [MobileController::class, 'dashboard']);
     Route::get('/notifications', [MobileController::class, 'notifications']);

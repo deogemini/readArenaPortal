@@ -194,7 +194,7 @@
             </div>
 
             @forelse($book->quizzes as $quiz)
-                @php($stats = $quizStats[$quiz->id] ?? ['attempts' => 0, 'pending_review' => 0, 'best_score' => 0])
+                @php($stats = $quizStats[$quiz->id] ?? ['attempts' => 0, 'pending_review' => 0, 'best_score' => 0, 'latest_status' => null, 'latest_score' => null, 'latest_passed' => null])
                 <article class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -204,6 +204,7 @@
                         <div class="text-sm text-[#5e544d]">
                             <p>Your attempts: {{ $stats['attempts'] }} / {{ $quiz->attempt_limit }}</p>
                             <p>Your best score: {{ $stats['best_score'] }}%</p>
+                            @if($stats['latest_status'] === 'pending_review')<p>Your latest attempt is awaiting review.</p>@elseif($stats['latest_status'] === 'graded')<p>Your latest score: {{ $stats['latest_score'] }}% ({{ $stats['latest_passed'] ? 'passed' : 'not passed' }})</p>@endif
                             @if($stats['pending_review'] > 0)<p>{{ $stats['pending_review'] }} awaiting written answer review</p>@endif
                             <p>All readers: {{ $quiz->readers_count }} · {{ $quiz->attempts_count }} attempts</p>
                             <p>Passed attempts: {{ $quiz->passed_attempts_count }} · Best score: {{ $quiz->best_score !== null ? (int) $quiz->best_score.'%' : '—' }}</p>

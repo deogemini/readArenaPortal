@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class QuizAttempt extends Model
 {
+    protected $casts = [
+        'score' => 'integer',
+        'passed' => 'boolean',
+    ];
+
     protected $fillable = [
         'quiz_id',
         'user_id',

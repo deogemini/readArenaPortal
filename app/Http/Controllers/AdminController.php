@@ -20,6 +20,7 @@ use App\Models\SmsGatewaySetting;
 use App\Models\ShowApplication;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
+use App\Models\UserActivityEvent;
 use App\Services\QuizAnswerOptions;
 use App\Services\QuizQuestionDefinition;
 use App\Services\ReaderNotificationService;
@@ -808,7 +809,9 @@ class AdminController extends Controller
     {
         $role = $request->string('role')->toString();
         $activity = $request->string('activity')->toString();
+        $presence = $request->string('presence')->toString();
         $ongoingDuelStatuses = ['pending', 'ongoing', 'in_progress', 'live'];
+        $onlineCutoff = now()->subMinutes(2);
         $query = User::query()
             ->withCount([
                 'readingGoals as active_goals_count' => function (Builder $builder) {
@@ -825,6 +828,14 @@ class AdminController extends Controller
 
         if (in_array($role, ['reader', 'author', 'admin'], true)) {
             $query->where('role', $role);
+        }
+
+        if ($presence === 'online') {
+            $query->where('last_seen_at', '>=', $onlineCutoff);
+        } elseif ($presence === 'offline') {
+            $query->where(function (Builder $builder) use ($onlineCutoff): void {
+                $builder->whereNull('last_seen_at')->orWhere('last_seen_at', '<', $onlineCutoff);
+            });
         }
 
         if ($activity === 'active') {
@@ -860,6 +871,7 @@ class AdminController extends Controller
         $users->getCollection()->transform(function (User $user) {
             $ongoingDuels = (int) $user->active_challenger_duels_count + (int) $user->active_opponent_duels_count;
             $user->ongoing_activities_count = (int) $user->active_goals_count + $ongoingDuels;
+            $user->is_online = $user->last_seen_at?->greaterThanOrEqualTo(now()->subMinutes(2)) ?? false;
 
             return $user;
         });
@@ -868,7 +880,75 @@ class AdminController extends Controller
             'users' => $users,
             'selectedRole' => $role,
             'selectedActivity' => $activity,
+            'selectedPresence' => $presence,
+            'activitySnapshot' => $this->activitySnapshotData([]),
         ]);
+    }
+
+    public function userActivitySnapshot(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'user_ids' => ['sometimes', 'array', 'max:20'],
+            'user_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        return response()->json($this->activitySnapshotData($payload['user_ids'] ?? []));
+    }
+
+    private function activitySnapshotData(array $userIds): array
+    {
+        $now = now();
+        $onlineCutoff = $now->copy()->subMinutes(2);
+
+        $events = UserActivityEvent::query()
+            ->with('user:id,name,role')
+            ->latest('id')
+            ->limit(12)
+            ->get()
+            ->map(fn (UserActivityEvent $event): array => [
+                'id' => $event->id,
+                'user_name' => $event->user?->name ?? 'Former user',
+                'role' => ucfirst($event->user?->role ?? 'reader'),
+                'activity' => $event->activity_label,
+                'platform' => $event->platform_label,
+                'created_at' => $event->created_at?->toIso8601String(),
+                'time_ago' => $event->created_at?->diffForHumans(),
+            ])
+            ->values();
+
+        $users = collect();
+        if ($userIds !== []) {
+            $ongoingDuelStatuses = ['pending', 'ongoing', 'in_progress', 'live'];
+            $users = User::query()
+                ->whereIn('id', array_values(array_unique($userIds)))
+                ->withCount([
+                    'readingGoals as active_goals_count' => fn (Builder $builder) => $builder->where('status', 'active'),
+                    'challengerDuels as active_challenger_duels_count' => fn (Builder $builder) => $builder->whereIn('status', $ongoingDuelStatuses),
+                    'opponentDuels as active_opponent_duels_count' => fn (Builder $builder) => $builder->whereIn('status', $ongoingDuelStatuses),
+                ])
+                ->get(['id', 'last_seen_at', 'last_seen_platform'])
+                ->map(fn (User $user): array => [
+                    'id' => $user->id,
+                    'is_online' => $user->last_seen_at?->greaterThanOrEqualTo($onlineCutoff) ?? false,
+                    'last_seen_at' => $user->last_seen_at?->toIso8601String(),
+                    'platform' => $user->last_seen_platform === 'android_app' ? 'Android app' : ($user->last_seen_platform === 'web_portal' ? 'Web portal' : null),
+                    'active_goals' => (int) $user->active_goals_count,
+                    'active_duels' => (int) $user->active_challenger_duels_count + (int) $user->active_opponent_duels_count,
+                ])
+                ->values();
+        }
+
+        return [
+            'metrics' => [
+                'online_now' => User::query()->where('last_seen_at', '>=', $onlineCutoff)->count(),
+                'active_24_hours' => User::query()->where('last_seen_at', '>=', $now->copy()->subDay())->count(),
+                'actions_last_hour' => UserActivityEvent::query()->where('created_at', '>=', $now->copy()->subHour())->count(),
+                'new_today' => User::query()->where('created_at', '>=', $now->copy()->startOfDay())->count(),
+            ],
+            'events' => $events,
+            'users' => $users,
+            'generated_at' => $now->toIso8601String(),
+        ];
     }
 
     public function packages()

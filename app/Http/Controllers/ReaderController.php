@@ -93,12 +93,16 @@ class ReaderController extends Controller
         $quizStats = $book->quizzes->mapWithKeys(function (Quiz $quiz) use ($readerId) {
             $attempts = QuizAttempt::where('quiz_id', $quiz->id)->where('user_id', $readerId)->get();
             $gradedAttempts = $attempts->where('review_status', 'graded');
+            $latestAttempt = $attempts->sortByDesc('id')->first();
 
             return [
                 $quiz->id => [
                     'attempts' => $attempts->count(),
                     'pending_review' => $attempts->where('review_status', 'pending_review')->count(),
                     'best_score' => (int) ($gradedAttempts->max('score') ?? 0),
+                    'latest_status' => $latestAttempt?->review_status,
+                    'latest_score' => $latestAttempt?->review_status === 'graded' ? (int) $latestAttempt->score : null,
+                    'latest_passed' => $latestAttempt?->review_status === 'graded' ? (bool) $latestAttempt->passed : null,
                 ],
             ];
         });

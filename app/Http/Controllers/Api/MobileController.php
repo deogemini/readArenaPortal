@@ -30,6 +30,7 @@ use App\Services\BookmarkService;
 use App\Services\BookReviewService;
 use App\Services\ReaderNotificationService;
 use App\Services\QuizAnswerSelection;
+use App\Services\UserActivityRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -231,6 +232,8 @@ class MobileController extends Controller
 
     public function logout(Request $request)
     {
+        $user = $request->user();
+        app(UserActivityRecorder::class)->record($user, 'signed_out', 'android_app', false);
         $request->user()->currentAccessToken()?->delete();
 
         return response()->json(['message' => 'Logged out successfully.']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\UserActivityRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -31,6 +32,8 @@ class AuthController extends Controller
             'email_verified_at' => now(),
         ]);
 
+        app(UserActivityRecorder::class)->record($user, 'registered', 'android_app');
+
         return $this->tokenResponse($user, 'Registration successful', $validated['device_name'] ?? 'android-app', 201);
     }
 
@@ -47,6 +50,8 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
+        app(UserActivityRecorder::class)->record($user, 'signed_in', 'android_app');
 
         return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
     }
@@ -73,6 +78,7 @@ class AuthController extends Controller
 
         $email = Str::lower($email);
         $user = User::where('email', $email)->first();
+        $isNewUser = ! $user;
 
         if (! $user) {
             $user = User::create([
@@ -83,6 +89,8 @@ class AuthController extends Controller
                 'role' => $validated['role'] ?? 'reader',
             ]);
         }
+
+        app(UserActivityRecorder::class)->record($user, $isNewUser ? 'registered' : 'signed_in', 'android_app');
 
         return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
     }

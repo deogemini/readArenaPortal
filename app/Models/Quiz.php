@@ -13,6 +13,8 @@ class Quiz extends Model
     public function scopeWithPerformanceStats(Builder $query): Builder
     {
         $attempts = static fn () => DB::table('quiz_attempts')
+            ->join('users', 'users.id', '=', 'quiz_attempts.user_id')
+            ->where('users.role', 'reader')
             ->whereColumn('quiz_attempts.quiz_id', 'quizzes.id');
         $gradedAttempts = static fn () => $attempts()->where('quiz_attempts.review_status', 'graded');
 

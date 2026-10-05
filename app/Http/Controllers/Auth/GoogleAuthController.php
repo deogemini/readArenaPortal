@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\UserActivityRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,6 +38,7 @@ class GoogleAuthController extends Controller
         }
 
         $user = User::where('email', $email)->first();
+        $isNewUser = ! $user;
 
         if (!$user) {
             $name = $googleUser->getName() ?: Str::before($email, '@');
@@ -52,6 +54,7 @@ class GoogleAuthController extends Controller
 
         Auth::login($user, true);
         $request->session()->regenerate();
+        app(UserActivityRecorder::class)->record($user, $isNewUser ? 'registered' : 'signed_in', 'web_portal');
 
         $defaultRoute = $user->isAdmin()
             ? route('admin.dashboard', absolute: false)

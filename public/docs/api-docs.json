@@ -260,6 +260,24 @@
         }
       }
     },
+    "/api/public/books/{book}/quiz-performance": {
+      "get": {
+        "tags": ["Books"],
+        "summary": "Get public quiz counts and aggregate reader performance for a published book",
+        "description": "No bearer token is required. Returns only aggregate results for published quizzes; reader identities and individual scores are never exposed.",
+        "parameters": [
+          { "name": "book", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "Book ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public book quiz performance",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublicBookQuizPerformanceResponse" } } }
+          },
+          "404": { "description": "Book not found or not published" },
+          "429": { "description": "Rate limit exceeded" }
+        }
+      }
+    },
     "/api/books/{book}/content": {
       "get": {
         "tags": ["Books"], "summary": "Stream the published book PDF to an authenticated reader", "security": [{ "bearerAuth": [] }],
@@ -329,7 +347,7 @@
         },
         "responses": {
           "200": {
-            "description": "Quiz submitted successfully",
+            "description": "Quiz auto-graded, or held for written-response review. Pending responses return a null score until finalized.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/QuizSubmissionResponse" }
@@ -743,7 +761,7 @@
               "requires_review": { "type": "boolean" }
             }
           },
-          "answers": { "type": "array", "items": { "$ref": "#/components/schemas/QuizAnswerSchema" } }
+          "answers": { "type": "array", "description": "Choice options only. Text question answer keys are never sent to readers.", "items": { "$ref": "#/components/schemas/QuizAnswerSchema" } }
         }
       },
       "QuizSchema": {
@@ -824,6 +842,58 @@
               "progress": { "type": ["object", "null"], "additionalProperties": true },
               "status": { "type": "string" },
               "quizzes": { "type": "array", "items": { "$ref": "#/components/schemas/QuizSchema" } }
+            }
+          }
+        }
+      },
+      "PublicBookQuizPerformanceResponse": {
+        "type": "object",
+        "description": "Aggregate performance data for one published book and each of its published quizzes. No reader identities or individual scores are included.",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "book": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "integer" },
+                  "title": { "type": "string" },
+                  "slug": { "type": "string" }
+                }
+              },
+              "performance": {
+                "type": "object",
+                "properties": {
+                  "published_quizzes_count": { "type": "integer" },
+                  "readers_count": { "type": "integer" },
+                  "attempts_count": { "type": "integer" },
+                  "pending_review_attempts_count": { "type": "integer" },
+                  "graded_attempts_count": { "type": "integer" },
+                  "passed_attempts_count": { "type": "integer" },
+                  "average_score": { "type": ["number", "null"] },
+                  "pass_rate": { "type": ["number", "null"] },
+                  "best_score": { "type": ["integer", "null"] }
+                }
+              },
+              "quizzes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer" },
+                    "title": { "type": "string" },
+                    "questions_count": { "type": "integer" },
+                    "readers_count": { "type": "integer" },
+                    "attempts_count": { "type": "integer" },
+                    "pending_review_attempts_count": { "type": "integer" },
+                    "graded_attempts_count": { "type": "integer" },
+                    "passed_attempts_count": { "type": "integer" },
+                    "average_score": { "type": ["number", "null"] },
+                    "pass_rate": { "type": ["number", "null"] },
+                    "best_score": { "type": ["integer", "null"] }
+                  }
+                }
+              }
             }
           }
         }

@@ -83,11 +83,12 @@
                     </form>
                 </section>
 
-                <div class="overflow-hidden rounded-[18px] border border-[#3d261b]">
-                <table class="w-full text-left text-sm">
+                <div class="overflow-x-auto rounded-[18px] border border-[#3d261b]">
+                <table class="w-full min-w-[1240px] text-left text-sm">
                     <thead class="bg-[#2B170D]">
                         <tr>
                             <th class="px-4 py-3">Title</th>
+                            <th class="px-4 py-3">Quiz activity</th>
                             <th class="px-4 py-3">Author</th>
                             <th class="px-4 py-3">Genre</th>
                             <th class="px-4 py-3">Publisher</th>
@@ -102,10 +103,11 @@
                     <tbody class="bg-[#1B0D05]">
                         @forelse($books as $book)
                             <tr class="border-t border-[#3d261b]">
-                                <td class="px-4 py-3">
-                                    {{ $book->title }}
-                                    <p class="mt-1 text-xs text-[#d8c9ad]">{{ (int) $book->total_quizzes_count }} quizzes ({{ (int) $book->published_quizzes_count }} published) | {{ (int) $book->quiz_readers_count }} readers | {{ (int) $book->quiz_attempts_count }} attempts ({{ (int) $book->quiz_pending_review_attempts_count }} awaiting review)</p>
-                                    <p class="mt-1 text-xs text-[#d8c9ad]">Avg {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }} | Pass {{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }} | Best {{ $book->quiz_best_score !== null ? (int) $book->quiz_best_score.'%' : '—' }}</p>
+                                <td class="px-4 py-3 font-semibold">{{ $book->title }}</td>
+                                <td class="min-w-[250px] px-4 py-3">
+                                    <p class="font-semibold">{{ (int) $book->published_quizzes_count }} published / {{ (int) $book->total_quizzes_count }} total quizzes</p>
+                                    <p class="mt-1 text-xs text-[#d8c9ad]">{{ (int) $book->quiz_readers_count }} readers · {{ (int) $book->quiz_attempts_count }} attempts · {{ (int) $book->quiz_pending_review_attempts_count }} awaiting review</p>
+                                    <p class="mt-1 text-xs text-[#d8c9ad]">Average {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }} · Pass {{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }} · Best {{ $book->quiz_best_score !== null ? (int) $book->quiz_best_score.'%' : '—' }}</p>
                                 </td>
                                 <td class="px-4 py-3">{{ $book->authors->pluck('name')->join(', ') ?: '-' }}</td>
                                 <td class="px-4 py-3">{{ $book->genres->pluck('name')->join(', ') ?: '-' }}</td>
@@ -153,7 +155,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="px-4 py-6 text-[#d8c9ad]">No books found.</td>
+                                <td colspan="11" class="px-4 py-6 text-[#d8c9ad]">No books found.</td>
                             </tr>
                         @endforelse
                     </tbody>
