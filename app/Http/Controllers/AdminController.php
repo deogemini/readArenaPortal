@@ -23,6 +23,7 @@ use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Services\ShowParticipationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -31,6 +32,8 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    private const BOOK_PDF_CHUNK_BYTES = 524288;
+
     public function index(Request $request)
     {
         $ongoingDuelStatuses = ['pending', 'ongoing', 'in_progress', 'live'];
@@ -243,6 +246,129 @@ class AdminController extends Controller
         return redirect()->route('admin.books')->with('status', 'PDF uploaded for "'.$book->title.'".');
     }
 
+    public function uploadBookPdfChunk(Request $request, Book $book): JsonResponse
+    {
+        $maximumBytes = (int) config('uploads.book_pdf_max_kb', 102400) * 1024;
+        $uploadId = (string) $request->header('X-Upload-Id', '');
+        $chunkIndex = filter_var($request->header('X-Chunk-Index'), FILTER_VALIDATE_INT);
+        $chunkCount = filter_var($request->header('X-Chunk-Count'), FILTER_VALIDATE_INT);
+        $totalSize = filter_var($request->header('X-Total-Size'), FILTER_VALIDATE_INT);
+
+        if (! Str::isUuid($uploadId)
+            || $chunkIndex === false
+            || $chunkCount === false
+            || $totalSize === false
+            || $totalSize < 1
+            || $totalSize > $maximumBytes
+            || $chunkCount !== (int) ceil($totalSize / self::BOOK_PDF_CHUNK_BYTES)
+            || $chunkIndex < 0
+            || $chunkIndex >= $chunkCount) {
+            return response()->json(['message' => 'Invalid PDF upload information. Please choose the PDF again.'], 422);
+        }
+
+        $body = $request->getContent();
+        $expectedChunkBytes = min(self::BOOK_PDF_CHUNK_BYTES, $totalSize - ($chunkIndex * self::BOOK_PDF_CHUNK_BYTES));
+
+        if (strlen($body) !== $expectedChunkBytes) {
+            return response()->json(['message' => 'A PDF upload part was incomplete. Please retry the upload.'], 422);
+        }
+
+        $disk = Storage::disk('local');
+        $directory = 'tmp/book-pdf-uploads/'.$request->user()->id.'/'.$book->id.'/'.$uploadId;
+        $chunkPath = $directory.'/'.sprintf('%06d.part', $chunkIndex);
+        $disk->makeDirectory($directory);
+
+        if (! $disk->put($chunkPath, $body)) {
+            return response()->json(['message' => 'The server could not save an upload part. Check available disk space and try again.'], 500);
+        }
+
+        $chunkPaths = [];
+        for ($index = 0; $index < $chunkCount; $index++) {
+            $path = $directory.'/'.sprintf('%06d.part', $index);
+            if (! $disk->exists($path)) {
+                return response()->json([
+                    'complete' => false,
+                    'received_parts' => count($disk->files($directory)),
+                    'total_parts' => $chunkCount,
+                ]);
+            }
+
+            $chunkPaths[] = $path;
+        }
+
+        $temporaryPdf = tempnam(sys_get_temp_dir(), 'readarena-pdf-');
+        if ($temporaryPdf === false) {
+            return response()->json(['message' => 'The server could not prepare the PDF. Please try again.'], 500);
+        }
+
+        $output = fopen($temporaryPdf, 'wb');
+        if ($output === false) {
+            @unlink($temporaryPdf);
+
+            return response()->json(['message' => 'The server could not prepare the PDF. Please try again.'], 500);
+        }
+
+        $assembledBytes = 0;
+        $copyFailed = false;
+        foreach ($chunkPaths as $path) {
+            $input = fopen($disk->path($path), 'rb');
+            if ($input === false) {
+                fclose($output);
+                @unlink($temporaryPdf);
+
+                return response()->json(['message' => 'The server could not read an upload part. Please try again.'], 500);
+            }
+
+            $copiedBytes = stream_copy_to_stream($input, $output);
+            if ($copiedBytes === false) {
+                $copyFailed = true;
+            } else {
+                $assembledBytes += $copiedBytes;
+            }
+            fclose($input);
+        }
+        fclose($output);
+
+        $header = file_get_contents($temporaryPdf, false, null, 0, 1024);
+        if ($copyFailed || $assembledBytes !== $totalSize || $header === false || ! str_contains($header, '%PDF-')) {
+            @unlink($temporaryPdf);
+            $disk->deleteDirectory($directory);
+
+            return response()->json(['message' => 'The uploaded file is not a valid PDF. Please choose a PDF and retry.'], 422);
+        }
+
+        $newPath = 'books/pdfs/'.Str::uuid().'.pdf';
+        $pdfStream = fopen($temporaryPdf, 'rb');
+        $stored = $pdfStream !== false && $disk->writeStream($newPath, $pdfStream);
+        if (is_resource($pdfStream)) {
+            fclose($pdfStream);
+        }
+        @unlink($temporaryPdf);
+
+        if (! $stored) {
+            return response()->json(['message' => 'The server could not save the finished PDF. Check available disk space and try again.'], 500);
+        }
+
+        $oldPath = $book->pdf_path;
+        try {
+            $book->update(['pdf_path' => $newPath]);
+        } catch (\Throwable $exception) {
+            $disk->delete($newPath);
+            $disk->deleteDirectory($directory);
+
+            throw $exception;
+        }
+
+        $disk->deleteDirectory($directory);
+
+        if ($oldPath) {
+            $disk->delete($oldPath);
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return response()->json(['complete' => true, 'message' => 'PDF uploaded successfully.']);
+    }
+
     public function destroyBook(Book $book): RedirectResponse
     {
         if ($book->quizzes()->whereHas('attempts')->exists()) {
@@ -338,6 +464,7 @@ class AdminController extends Controller
             'correct_answer' => ['required', 'string', 'max:1000'],
             'wrong_answer_1' => ['required', 'string', 'max:1000', 'different:correct_answer'],
             'wrong_answer_2' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1'],
+            'wrong_answer_3' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1', 'different:wrong_answer_2'],
         ]);
 
         $question->update([
@@ -375,6 +502,14 @@ class AdminController extends Controller
                 'is_correct' => false,
             ]);
         $wrongTwo->update(['body' => $payload['wrong_answer_2'], 'is_correct' => false]);
+
+        $wrongThree = $wrongAnswers->get(2)
+            ?? QuizAnswer::create([
+                'quiz_question_id' => $question->id,
+                'body' => $payload['wrong_answer_3'],
+                'is_correct' => false,
+            ]);
+        $wrongThree->update(['body' => $payload['wrong_answer_3'], 'is_correct' => false]);
 
         return redirect()->route('admin.quizzes')->with('status', 'Question updated successfully.');
     }
@@ -439,6 +574,7 @@ class AdminController extends Controller
             'correct_answer' => ['required', 'string', 'max:1000'],
             'wrong_answer_1' => ['required', 'string', 'max:1000', 'different:correct_answer'],
             'wrong_answer_2' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1'],
+            'wrong_answer_3' => ['required', 'string', 'max:1000', 'different:correct_answer', 'different:wrong_answer_1', 'different:wrong_answer_2'],
         ]);
 
         $question = QuizQuestion::create([
@@ -462,6 +598,11 @@ class AdminController extends Controller
         QuizAnswer::create([
             'quiz_question_id' => $question->id,
             'body' => $payload['wrong_answer_2'],
+            'is_correct' => false,
+        ]);
+        QuizAnswer::create([
+            'quiz_question_id' => $question->id,
+            'body' => $payload['wrong_answer_3'],
             'is_correct' => false,
         ]);
 

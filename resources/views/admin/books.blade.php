@@ -111,11 +111,12 @@
                                 <td class="px-4 py-3">{{ $book->featured ? 'Yes' : 'No' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="mb-2">{{ $book->pdf_path ? 'PDF uploaded' : 'PDF missing' }}</div>
-                                    <form action="{{ route('admin.books.pdf.store', $book) }}" method="POST" enctype="multipart/form-data" class="min-w-44 space-y-2">
+                                    <form action="{{ route('admin.books.pdf.store', $book) }}" method="POST" enctype="multipart/form-data" data-chunk-url="{{ route('admin.books.pdf.chunks', $book) }}" data-max-bytes="{{ (int) config('uploads.book_pdf_max_kb', 102400) * 1024 }}" class="min-w-44 space-y-2" data-pdf-chunk-upload>
                                         @csrf
                                         <input type="file" name="pdf_file" accept="application/pdf" required class="block w-52 max-w-full rounded-lg border border-[#3d261b] bg-[#2B170D] px-2 py-1 text-xs">
-                                        <button class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $book->pdf_path ? 'Replace PDF' : 'Upload PDF' }}</button>
-                                        <p class="text-xs text-[#d8c9ad]">PDF only, up to {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB.</p>
+                                        <button type="submit" data-idle-label="{{ $book->pdf_path ? 'Replace PDF' : 'Upload PDF' }}" class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $book->pdf_path ? 'Replace PDF' : 'Upload PDF' }}</button>
+                                        <p class="text-xs text-[#d8c9ad]">PDF only, up to {{ (int) ceil(config('uploads.book_pdf_max_kb', 102400) / 1024) }}MB. Large PDFs upload in small pieces.</p>
+                                        <p class="text-xs text-[#D8A83E]" role="status" aria-live="polite" data-upload-status></p>
                                     </form>
                                 </td>
                                 <td class="px-4 py-3">{{ optional($book->created_at)->format('Y-m-d') }}</td>
@@ -160,5 +161,81 @@
         </section>
     </main>
 </div>
+<script>
+    document.querySelectorAll('[data-pdf-chunk-upload]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const input = form.querySelector('input[type="file"]');
+            const button = form.querySelector('button[type="submit"]');
+            const status = form.querySelector('[data-upload-status]');
+            const file = input.files[0];
+            const maxBytes = Number(form.dataset.maxBytes);
+
+            if (!file) {
+                status.textContent = 'Choose a PDF file first.';
+                return;
+            }
+
+            if (file.size > maxBytes) {
+                status.textContent = `This PDF is larger than the ${Math.floor(maxBytes / 1048576)} MiB limit.`;
+                return;
+            }
+
+            const chunkBytes = 512 * 1024;
+            const chunkCount = Math.ceil(file.size / chunkBytes);
+            const uploadId = crypto.randomUUID();
+            const csrfToken = form.querySelector('input[name="_token"]').value;
+
+            button.disabled = true;
+            input.disabled = true;
+            button.textContent = 'Uploading...';
+
+            try {
+                for (let index = 0; index < chunkCount; index++) {
+                    const start = index * chunkBytes;
+                    const chunk = file.slice(start, Math.min(start + chunkBytes, file.size), 'application/octet-stream');
+                    status.textContent = `Uploading part ${index + 1} of ${chunkCount}...`;
+
+                    const response = await fetch(form.dataset.chunkUrl, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/octet-stream',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Upload-Id': uploadId,
+                            'X-Chunk-Index': String(index),
+                            'X-Chunk-Count': String(chunkCount),
+                            'X-Total-Size': String(file.size),
+                        },
+                        body: chunk,
+                    });
+                    const result = await response.json().catch(() => null);
+
+                    if (!response.ok) {
+                        const message = response.status === 413
+                            ? 'The server rejected a 512 KB upload part. Raise Apache LimitRequestBody and PHP post_max_size, then retry.'
+                            : `Server rejected upload part ${index + 1} (HTTP ${response.status}).`;
+                        throw new Error(result?.message ?? message);
+                    }
+
+                    if (result?.complete) {
+                        status.textContent = result.message ?? 'PDF uploaded. Refreshing...';
+                        window.location.reload();
+                        return;
+                    }
+                }
+
+                throw new Error('The server did not confirm the complete PDF. Please retry.');
+            } catch (error) {
+                status.textContent = `Upload failed: ${error.message}`;
+                button.disabled = false;
+                input.disabled = false;
+                button.textContent = button.dataset.idleLabel;
+            }
+        });
+    });
+</script>
 </body>
 </html>

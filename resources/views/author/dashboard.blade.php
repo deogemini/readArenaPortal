@@ -70,6 +70,7 @@
                 <input name="correct_answer" placeholder="Correct answer" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                 <input name="wrong_answer_1" placeholder="Wrong answer 1" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                 <input name="wrong_answer_2" placeholder="Wrong answer 2" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
+                <input name="wrong_answer_3" placeholder="Wrong answer 3" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                 <button class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Create quiz</button>
             </form>
         </section>

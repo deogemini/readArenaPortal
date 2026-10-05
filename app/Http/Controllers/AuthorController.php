@@ -81,6 +81,7 @@ class AuthorController extends Controller
             'correct_answer' => ['required', 'string', 'max:255'],
             'wrong_answer_1' => ['required', 'string', 'max:255'],
             'wrong_answer_2' => ['required', 'string', 'max:255'],
+            'wrong_answer_3' => ['required', 'string', 'max:255'],
         ]);
 
         $quiz = Quiz::create([
@@ -114,6 +115,11 @@ class AuthorController extends Controller
         QuizAnswer::create([
             'quiz_question_id' => $question->id,
             'body' => $payload['wrong_answer_2'],
+            'is_correct' => false,
+        ]);
+        QuizAnswer::create([
+            'quiz_question_id' => $question->id,
+            'body' => $payload['wrong_answer_3'],
             'is_correct' => false,
         ]);
 

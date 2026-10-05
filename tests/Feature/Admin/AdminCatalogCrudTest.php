@@ -7,6 +7,7 @@ use App\Models\SubscriptionPackage;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 function adminCatalogBook(string $slug = 'admin-catalog-book'): Book
 {
@@ -86,6 +87,41 @@ test('administrators can upload a PDF larger than the previous 3MB limit', funct
     Storage::disk('local')->assertExists($book->pdf_path);
 });
 
+test('administrators can upload a PDF in small chunks and attach the assembled file', function () {
+    $admin = User::factory()->admin()->create();
+    $book = adminCatalogBook('chunked-pdf-book');
+    Storage::fake('local');
+
+    $pdf = '%PDF-1.7'.str_repeat('A', 600000);
+    $chunks = str_split($pdf, 524288);
+    $uploadId = (string) Str::uuid();
+    $lastResponse = null;
+
+    foreach ($chunks as $index => $chunk) {
+        $lastResponse = $this->actingAs($admin)->call(
+            'POST',
+            route('admin.books.pdf.chunks', $book),
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/octet-stream',
+                'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_UPLOAD_ID' => $uploadId,
+                'HTTP_X_CHUNK_INDEX' => (string) $index,
+                'HTTP_X_CHUNK_COUNT' => (string) count($chunks),
+                'HTTP_X_TOTAL_SIZE' => (string) strlen($pdf),
+            ],
+            $chunk,
+        );
+    }
+
+    $lastResponse->assertOk()->assertJsonPath('complete', true);
+    $book->refresh();
+    Storage::disk('local')->assertExists($book->pdf_path);
+    expect(Storage::disk('local')->size($book->pdf_path))->toBe(strlen($pdf));
+});
+
 test('an oversized PDF request leaves the previously saved book details intact', function () {
     $admin = User::factory()->admin()->create();
     $this->actingAs($admin)->post(route('admin.books.store'), [
@@ -139,8 +175,11 @@ test('administrators can create update and delete quizzes and questions', functi
         'correct_answer' => 'Mara',
         'wrong_answer_1' => 'Jon',
         'wrong_answer_2' => 'Lee',
+        'wrong_answer_3' => 'Nia',
     ])->assertRedirect(route('admin.quizzes'));
     $question = QuizQuestion::where('quiz_id', $quiz->id)->firstOrFail();
+    expect($question->answers)->toHaveCount(4)
+        ->and($question->answers->where('is_correct', false))->toHaveCount(3);
 
     $this->actingAs($admin)->patch(route('admin.quiz-questions.update', $question), [
         'prompt' => 'Who tells the story?',
@@ -149,8 +188,11 @@ test('administrators can create update and delete quizzes and questions', functi
         'correct_answer' => 'Mara',
         'wrong_answer_1' => 'Jon',
         'wrong_answer_2' => 'Lee',
+        'wrong_answer_3' => 'Nia',
     ])->assertRedirect(route('admin.quizzes'));
-    expect($question->fresh()->prompt)->toBe('Who tells the story?')->and($question->fresh()->points)->toBe(15);
+    expect($question->fresh()->prompt)->toBe('Who tells the story?')
+        ->and($question->fresh()->points)->toBe(15)
+        ->and($question->fresh()->answers->where('body', 'Nia'))->toHaveCount(1);
 
     $this->actingAs($admin)->delete(route('admin.quiz-questions.destroy', $question))->assertRedirect(route('admin.quizzes'));
     $this->assertDatabaseMissing('quiz_questions', ['id' => $question->id]);

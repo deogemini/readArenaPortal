@@ -79,6 +79,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::get('/books', [AdminController::class, 'books'])->name('admin.books');
     Route::post('/books', [AdminController::class, 'storeBook'])->name('admin.books.store');
     Route::post('/books/{book}/pdf', [AdminController::class, 'uploadBookPdf'])->name('admin.books.pdf.store');
+    Route::post('/books/{book}/pdf/chunks', [AdminController::class, 'uploadBookPdfChunk'])->name('admin.books.pdf.chunks');
     Route::patch('/books/{book}', [AdminController::class, 'updateBook'])->name('admin.books.update');
     Route::delete('/books/{book}', [AdminController::class, 'destroyBook'])->name('admin.books.destroy');
     Route::get('/quizzes', [AdminController::class, 'quizzes'])->name('admin.quizzes');

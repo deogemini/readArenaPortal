@@ -67,10 +67,22 @@
                             </select>
                             <input name="title" value="{{ old('title') }}" placeholder="Quiz title" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                             <textarea name="instructions" rows="3" placeholder="Instructions" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">{{ old('instructions') }}</textarea>
-                            <div class="grid gap-4 sm:grid-cols-3">
-                                <input type="number" name="pass_mark" value="{{ old('pass_mark', 70) }}" placeholder="Pass %" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
-                                <input type="number" name="attempt_limit" value="{{ old('attempt_limit', 3) }}" placeholder="Attempts" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
-                                <input type="number" name="duration_minutes" value="{{ old('duration_minutes', 10) }}" placeholder="Minutes" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                            <div class="grid items-start gap-4 sm:grid-cols-3">
+                                <label class="block">
+                                    <span class="mb-1 block text-sm font-medium">Pass mark (%)</span>
+                                    <input type="number" name="pass_mark" value="{{ old('pass_mark', 70) }}" min="1" max="100" class="w-full rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                                    <span class="mt-1 block text-xs leading-5 text-[#d8c9ad]">Minimum percentage a reader needs to pass.</span>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-sm font-medium">Attempt limit</span>
+                                    <input type="number" name="attempt_limit" value="{{ old('attempt_limit', 3) }}" min="1" class="w-full rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                                    <span class="mt-1 block text-xs leading-5 text-[#d8c9ad]">Maximum number of tries allowed per reader.</span>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-sm font-medium">Time limit (minutes)</span>
+                                    <input type="number" name="duration_minutes" value="{{ old('duration_minutes', 10) }}" min="1" class="w-full rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                                    <span class="mt-1 block text-xs leading-5 text-[#d8c9ad]">Minutes allowed to complete one attempt.</span>
+                                </label>
                             </div>
                             <select name="status" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                                 <option value="draft" @selected(old('status', 'draft') === 'draft')>Draft</option>
@@ -95,9 +107,11 @@
                                 <input type="number" name="points" value="{{ old('points', 10) }}" placeholder="Points" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                                 <input type="number" name="sort_order" value="{{ old('sort_order') }}" placeholder="Sort order (optional)" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                             </div>
+                            <p class="text-xs text-[#d8c9ad]">Enter one correct answer and three different incorrect answers.</p>
                             <input name="correct_answer" value="{{ old('correct_answer') }}" placeholder="Correct answer" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                             <input name="wrong_answer_1" value="{{ old('wrong_answer_1') }}" placeholder="Wrong answer 1" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                             <input name="wrong_answer_2" value="{{ old('wrong_answer_2') }}" placeholder="Wrong answer 2" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                            <input name="wrong_answer_3" value="{{ old('wrong_answer_3') }}" placeholder="Wrong answer 3" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                             <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Add question</button>
                         </form>
                     </section>
@@ -179,7 +193,8 @@
                                                 <input type="number" name="sort_order" value="{{ $question->sort_order }}" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" min="1" required>
                                                 <input name="correct_answer" value="{{ $correctAnswer?->body }}" placeholder="Correct answer" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
                                                 <input name="wrong_answer_1" value="{{ $wrongAnswers->get(0)?->body }}" placeholder="Wrong answer 1" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
-                                                <input name="wrong_answer_2" value="{{ $wrongAnswers->get(1)?->body }}" placeholder="Wrong answer 2" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2 md:col-span-2" required>
+                                                <input name="wrong_answer_2" value="{{ $wrongAnswers->get(1)?->body }}" placeholder="Wrong answer 2" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
+                                                <input name="wrong_answer_3" value="{{ $wrongAnswers->get(2)?->body }}" placeholder="Wrong answer 3" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-3 py-2" required>
                                                 <div class="md:col-span-2">
                                                     <button class="rounded-full bg-[#D8A83E] px-4 py-2 text-xs font-semibold text-[#1B0D05]">Save question changes</button>
                                                 </div>
