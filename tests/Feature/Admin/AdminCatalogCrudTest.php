@@ -185,6 +185,33 @@ test('administrators can create update and delete quizzes and questions', functi
         ->and($question->answers->where('is_correct', true)->pluck('body')->all())->toBe(['Mara', 'Lee'])
         ->and($question->answers->where('is_correct', false))->toHaveCount(2);
 
+    $this->actingAs($admin)->post(route('admin.quizzes.questions.store', $quiz), [
+        'prompt' => 'Who is the narrator?',
+        'points' => 10,
+        'answer_options' => [
+            ['body' => 'Mara'],
+            ['body' => 'Jon'],
+            ['body' => 'Lee'],
+            ['body' => 'Nia'],
+        ],
+        'correct_options' => ['0', '2'],
+    ])->assertSessionHasErrors('prompt');
+    expect($quiz->questions()->count())->toBe(1);
+
+    $otherQuestion = QuizQuestion::create([
+        'quiz_id' => $quiz->id,
+        'prompt' => 'Where does the story begin?',
+        'question_type' => 'multiple_choice',
+        'points' => 10,
+        'sort_order' => 2,
+    ]);
+    $this->actingAs($admin)->patch(route('admin.quiz-questions.update', $question), [
+        'prompt' => $otherQuestion->prompt,
+        'points' => 10,
+        'sort_order' => 1,
+    ])->assertSessionHasErrors('prompt');
+    expect($question->fresh()->prompt)->toBe('Who is the narrator?');
+
     $this->actingAs($admin)->patch(route('admin.quiz-questions.update', $question), [
         'prompt' => 'Who tells the story?',
         'points' => 15,

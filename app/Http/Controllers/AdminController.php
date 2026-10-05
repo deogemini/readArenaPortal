@@ -459,9 +459,15 @@ class AdminController extends Controller
     public function updateQuizQuestion(Request $request, QuizQuestion $question): RedirectResponse
     {
         $payload = $request->validate([
-            'prompt' => ['required', 'string'],
+            'prompt' => [
+                'required',
+                'string',
+                Rule::unique('quiz_questions', 'prompt')->where('quiz_id', $question->quiz_id)->ignore($question->id),
+            ],
             'points' => ['required', 'integer', 'min:1', 'max:100'],
             'sort_order' => ['required', 'integer', 'min:1'],
+        ], [
+            'prompt.unique' => 'This question already exists in this quiz.',
         ]);
         $answerPayload = QuizAnswerOptions::validate(
             $request->input('question_answer_options.'.$question->id),
@@ -537,9 +543,15 @@ class AdminController extends Controller
     public function storeQuizQuestion(Request $request, Quiz $quiz): RedirectResponse
     {
         $payload = $request->validate([
-            'prompt' => ['required', 'string'],
+            'prompt' => [
+                'required',
+                'string',
+                Rule::unique('quiz_questions', 'prompt')->where('quiz_id', $quiz->id),
+            ],
             'points' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sort_order' => ['nullable', 'integer', 'min:1'],
+        ], [
+            'prompt.unique' => 'This question already exists in this quiz.',
         ]);
         $answerPayload = QuizAnswerOptions::validate(
             $request->input('answer_options'),
