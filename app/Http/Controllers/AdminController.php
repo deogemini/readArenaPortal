@@ -163,7 +163,9 @@ class AdminController extends Controller
     public function books()
     {
         return view('admin.books', [
-            'books' => Book::query()->withQuizPerformanceStats()->with(['publisher', 'authors', 'genres'])->latest()->paginate(10),
+            'books' => Book::query()->withQuizPerformanceStats()->with(['publisher', 'authors', 'genres'])
+                ->withCount('quizzes as total_quizzes_count')
+                ->latest()->paginate(10),
         ]);
     }
 

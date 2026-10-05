@@ -37,6 +37,8 @@
                         <p class="text-xs uppercase tracking-[0.3em] text-[#B98A2C]">{{ $book->genres->first()?->name ?? 'Classic' }}</p>
                         <h2 class="mt-2 font-serif text-2xl text-[#1B0D05]">{{ $book->title }}</h2>
                         <p class="mt-2 text-sm text-[#786A5D]">{{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
+                        <p class="mt-2 text-xs text-[#786A5D]">{{ (int) $book->published_quizzes_count }} quizzes · {{ (int) $book->quiz_readers_count }} readers · {{ (int) $book->quiz_attempts_count }} attempts</p>
+                        <p class="mt-1 text-xs text-[#786A5D]">Average score: {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }}</p>
                         <div class="mt-4 flex flex-wrap gap-2">
                             <a href="/reader/books/{{ $book->slug }}" class="inline-flex rounded-full border border-[#d8c9ad] px-4 py-2 text-sm font-semibold text-[#1B0D05]">Open book</a>
                             @if($book->pdf_path)

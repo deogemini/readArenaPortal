@@ -55,6 +55,8 @@
                                     <p class="text-xs uppercase tracking-[0.3em] text-[#B98A2C]">{{ $book->genres->first()?->name ?? 'Classic' }}</p>
                                     <h3 class="mt-1 font-serif text-xl text-[#1B0D05]">{{ $book->title }}</h3>
                                     <p class="mt-1 text-sm text-[#786A5D]">{{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
+                                    <p class="mt-2 text-xs text-[#786A5D]">{{ (int) $book->published_quizzes_count }} quizzes · {{ (int) $book->quiz_readers_count }} readers · {{ (int) $book->quiz_attempts_count }} attempts</p>
+                                    <p class="mt-1 text-xs text-[#786A5D]">Average score: {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }}</p>
                                     <div class="mt-3 flex items-center gap-2 text-sm">
                                         @if($book->quizzes_count > 0)
                                             <span class="rounded-full bg-[#1B0D05] px-3 py-1 text-[#FBF6EA]">Quiz ready</span>

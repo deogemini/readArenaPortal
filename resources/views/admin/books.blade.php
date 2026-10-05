@@ -104,8 +104,8 @@
                             <tr class="border-t border-[#3d261b]">
                                 <td class="px-4 py-3">
                                     {{ $book->title }}
-                                    <p class="mt-1 text-xs text-[#d8c9ad]">{{ (int) $book->published_quizzes_count }} published quizzes · {{ (int) $book->quiz_readers_count }} readers · {{ (int) $book->quiz_attempts_count }} attempts</p>
-                                    <p class="mt-1 text-xs text-[#d8c9ad]">Avg {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }} · Pass {{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }}</p>
+                                    <p class="mt-1 text-xs text-[#d8c9ad]">{{ (int) $book->total_quizzes_count }} quizzes ({{ (int) $book->published_quizzes_count }} published) | {{ (int) $book->quiz_readers_count }} readers | {{ (int) $book->quiz_attempts_count }} attempts</p>
+                                    <p class="mt-1 text-xs text-[#d8c9ad]">Avg {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }} | Pass {{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }} | Best {{ $book->quiz_best_score !== null ? (int) $book->quiz_best_score.'%' : '—' }}</p>
                                 </td>
                                 <td class="px-4 py-3">{{ $book->authors->pluck('name')->join(', ') ?: '-' }}</td>
                                 <td class="px-4 py-3">{{ $book->genres->pluck('name')->join(', ') ?: '-' }}</td>

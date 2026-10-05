@@ -48,12 +48,14 @@
             <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">Reader performance for this book</h2>
             <p class="mt-2 text-sm text-[#786A5D]">Aggregate results from published quizzes. Individual reader scores remain private.</p>
 
-            <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
                 <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Published quizzes</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->published_quizzes_count }}</p></div>
                 <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Readers attempted</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_readers_count }}</p></div>
                 <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Total attempts</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_attempts_count }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Passed attempts</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ (int) $book->quiz_passed_attempts_count }}</p></div>
                 <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Average score</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }}</p></div>
                 <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Pass rate</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ $book->quiz_pass_rate !== null ? number_format($book->quiz_pass_rate, 1).'%' : '—' }}</p></div>
+                <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4"><p class="text-xs uppercase tracking-wide text-[#786A5D]">Best score</p><p class="mt-1 text-2xl font-semibold text-[#1B0D05]">{{ $book->quiz_best_score !== null ? (int) $book->quiz_best_score.'%' : '—' }}</p></div>
             </div>
 
             @if($quizzes->isNotEmpty())
@@ -63,9 +65,10 @@
                         <article class="rounded-[20px] border border-[#d8c9ad] bg-white p-5">
                             <div class="flex flex-wrap items-start justify-between gap-4">
                                 <div><h4 class="font-semibold text-[#1B0D05]">{{ $quiz->title }}</h4><p class="mt-1 text-sm text-[#786A5D]">{{ $quiz->questions_count }} questions</p></div>
-                                <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#5e544d] sm:grid-cols-3 lg:grid-cols-5">
+                                <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#5e544d] sm:grid-cols-3 lg:grid-cols-6">
                                     <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->readers_count }}</span> readers</p>
                                     <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->attempts_count }}</span> attempts</p>
+                                    <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->passed_attempts_count }}</span> passed</p>
                                     <p>Average: <span class="font-semibold text-[#1B0D05]">{{ $quiz->average_score !== null ? number_format((float) $quiz->average_score, 1).'%' : '—' }}</span></p>
                                     <p>Pass rate: <span class="font-semibold text-[#1B0D05]">{{ $quiz->pass_rate !== null ? number_format($quiz->pass_rate, 1).'%' : '—' }}</span></p>
                                     <p>Best: <span class="font-semibold text-[#1B0D05]">{{ $quiz->best_score !== null ? (int) $quiz->best_score.'%' : '—' }}</span></p>

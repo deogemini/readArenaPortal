@@ -199,7 +199,7 @@
     "/api/books": {
       "get": {
         "tags": ["Books"],
-        "summary": "Search and browse published books",
+        "summary": "Search published books with quiz counts and aggregate reader performance",
         "security": [
           { "bearerAuth": [] }
         ],
@@ -235,7 +235,7 @@
     "/api/books/{book}": {
       "get": {
         "tags": ["Books"],
-        "summary": "Get a single book with its quizzes",
+        "summary": "Get a published book, its quizzes, and aggregate reader performance",
         "security": [
           { "bearerAuth": [] }
         ],
@@ -538,7 +538,7 @@
     },
     "/api/quizzes/{quiz}": {
       "get": {
-        "tags": ["Quizzes"], "summary": "Get a published quiz without exposing correct answers", "security": [{ "bearerAuth": [] }],
+        "tags": ["Quizzes"], "summary": "Get a published quiz, aggregate reader performance, and questions without exposing correct answers", "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "quiz", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "responses": {
           "200": {
@@ -657,6 +657,7 @@
       },
       "BookSummary": {
         "type": "object",
+        "description": "Published book summary with aggregate metrics for its published quizzes. Reader identities and individual scores are not exposed.",
         "properties": {
           "id": { "type": "integer" },
           "title": { "type": "string" },
@@ -767,6 +768,7 @@
       },
       "BookDetailResponse": {
         "type": "object",
+        "description": "Book details, published quizzes, and aggregate quiz performance. Reader identities and individual scores are not exposed.",
         "properties": {
           "data": {
             "type": "object",
