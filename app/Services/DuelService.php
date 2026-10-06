@@ -43,7 +43,7 @@ class DuelService
             ->whereKeyNot($user->id)
             ->whereIn('id', $verifiedUserIds)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'username', 'profile_photo_path', 'last_seen_at']);
     }
 
     public function challenge(User $challenger, int $opponentId, int $bookId): Duel

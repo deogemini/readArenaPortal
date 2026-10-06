@@ -12,6 +12,7 @@ class ReaderNotificationPreference extends Model
         'quiz_failed',
         'duel_invitation',
         'duel_response',
+        'reader_like_request',
         'show_rsvp',
         'show_application_status',
         'goal_milestone',

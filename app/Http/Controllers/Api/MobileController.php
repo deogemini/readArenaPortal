@@ -7,6 +7,7 @@ use App\Models\Book;
 use App\Models\Bookmark;
 use App\Models\BookReview;
 use App\Models\Duel;
+use App\Models\DuelAttempt;
 use App\Models\Lesson;
 use App\Models\LiveShow;
 use App\Models\Quiz;
@@ -17,10 +18,12 @@ use App\Models\ReaderShelf;
 use App\Models\Recommendation;
 use App\Models\ReaderNotification;
 use App\Models\ReaderNotificationPreference;
+use App\Models\ReaderLikeRequest;
 use App\Models\PushDeviceToken;
 use App\Models\ShowApplication;
 use App\Models\ShowRsvp;
 use App\Models\User;
+use App\Models\UserActivityEvent;
 use App\Services\ReaderContentService;
 use App\Services\DuelService;
 use App\Services\LeaderboardService;
@@ -35,6 +38,7 @@ use App\Services\UserActivityRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -116,6 +120,107 @@ class MobileController extends Controller
     public function profile(Request $request)
     {
         return response()->json(['data' => $this->userData($request->user())]);
+    }
+
+    public function destroyAccount(Request $request)
+    {
+        $payload = $request->validate(['password' => ['required', 'string']]);
+        $user = $request->user();
+        if (! Hash::check($payload['password'], $user->password)) {
+            throw ValidationException::withMessages(['password' => 'The password is incorrect.']);
+        }
+
+        $photoPath = $user->profile_photo_path;
+        $user->tokens()->delete();
+        $user->delete();
+        if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
+
+        return response()->json(['message' => 'Account deleted successfully.']);
+    }
+
+    public function activity(Request $request)
+    {
+        $filters = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+        $events = UserActivityEvent::query()
+            ->where('user_id', $request->user()->id)
+            ->latest('id')
+            ->paginate($filters['per_page'] ?? 20);
+
+        return response()->json([
+            'data' => $events->getCollection()->map(fn (UserActivityEvent $event) => [
+                'id' => $event->id,
+                'activity_key' => $event->activity_key,
+                'activity' => $event->activity_label,
+                'platform' => $event->platform,
+                'created_at' => $event->created_at?->toIso8601String(),
+            ])->values(),
+            'meta' => [
+                'current_page' => $events->currentPage(),
+                'last_page' => $events->lastPage(),
+                'per_page' => $events->perPage(),
+                'total' => $events->total(),
+            ],
+        ]);
+    }
+
+    public function rewardHistory(Request $request, LeaderboardService $leaderboard)
+    {
+        $filters = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+        $attempts = QuizAttempt::query()
+            ->with('quiz:id,title,book_id')
+            ->where('user_id', $request->user()->id)
+            ->where('review_status', 'graded')
+            ->where('passed', true)
+            ->whereHas('quiz', fn ($quizzes) => $quizzes->where('status', 'published')->whereHas('book', fn ($books) => $books->where('status', 'published')))
+            ->orderBy('id')
+            ->get();
+
+        $bestScores = [];
+        $balance = 0;
+        $history = [];
+        foreach ($attempts as $attempt) {
+            $quizId = (int) $attempt->quiz_id;
+            $oldBest = $bestScores[$quizId] ?? 0;
+            $pointsEarned = max(0, (int) $attempt->score - $oldBest);
+            if ($pointsEarned === 0) {
+                continue;
+            }
+            $bestScores[$quizId] = max($oldBest, (int) $attempt->score);
+            $balance += $pointsEarned;
+            $history[] = [
+                'attempt_id' => $attempt->id,
+                'quiz_id' => $quizId,
+                'quiz_title' => $attempt->quiz?->title,
+                'score' => (int) $attempt->score,
+                'points_earned' => $pointsEarned,
+                'total_points' => $balance,
+                'created_at' => $attempt->created_at?->toIso8601String(),
+            ];
+        }
+        $total = count($history);
+        $perPage = (int) ($filters['per_page'] ?? 20);
+        $page = (int) ($filters['page'] ?? 1);
+        $items = collect($history)->reverse()->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'current_page' => $page,
+                'last_page' => max(1, (int) ceil($total / $perPage)),
+                'per_page' => $perPage,
+                'total' => $total,
+                'points_balance' => $leaderboard->pointsForUser($request->user()->id),
+                'scoring' => 'Points equal each quiz’s best passed score; only improvements to a quiz best add points.',
+            ],
+        ]);
     }
 
     public function language(Request $request)
@@ -602,11 +707,20 @@ class MobileController extends Controller
     {
         abort_unless($book->status === 'published', 404);
 
+        $normalized = $request->all();
+        $normalized['current_page'] = $normalized['current_page']
+            ?? $normalized['page']
+            ?? $normalized['page_number']
+            ?? $normalized['pageNumber']
+            ?? $normalized['last_page_read']
+            ?? $normalized['lastPageRead']
+            ?? $normalized['currentPage']
+            ?? null;
         $progressRules = ['current_page' => ['required', 'integer', 'min:1']];
         if ($book->page_count) {
             $progressRules['current_page'][] = 'max:'.$book->page_count;
         }
-        $payload = $request->validate($progressRules);
+        $payload = validator($normalized, $progressRules)->validate();
 
         $result = DB::transaction(function () use ($request, $book, $payload) {
             $progress = ReadingProgress::query()
@@ -670,6 +784,17 @@ class MobileController extends Controller
     }
 
     public function bookContent(Request $request, Book $book, BookContentService $content)
+    {
+        abort_unless($request->user()->isReader(), 403);
+
+        if ($request->query('format') === 'pdf') {
+            return $content->stream($book);
+        }
+
+        return response()->json(['data' => $content->manifest($book)]);
+    }
+
+    public function bookContentPdf(Request $request, Book $book, BookContentService $content)
     {
         abort_unless($request->user()->isReader(), 403);
 
@@ -1013,6 +1138,128 @@ class MobileController extends Controller
         ]);
     }
 
+    public function readers(Request $request, DuelService $duels)
+    {
+        abort_unless($request->user()->isReader(), 403);
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'book_id' => ['nullable', 'integer', 'exists:books,id'],
+            'online_only' => ['nullable', 'boolean'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+        $cutoff = now()->subMinutes(2);
+        $query = User::query()->where('role', 'reader')->whereKeyNot($request->user()->id);
+
+        if (! empty($filters['book_id'])) {
+            $eligibleIds = $duels->verifiedOpponents($request->user(), Book::findOrFail($filters['book_id']))->modelKeys();
+            $query->whereIn('id', $eligibleIds);
+        }
+        if (! empty($filters['online_only'])) {
+            $query->where('last_seen_at', '>=', $cutoff);
+        }
+        if (! empty($filters['q'])) {
+            $term = trim($filters['q']);
+            $query->where(fn ($builder) => $builder->where('name', 'like', '%'.$term.'%')->orWhere('username', 'like', '%'.$term.'%'));
+        }
+
+        $readers = $query->orderByDesc('last_seen_at')->orderBy('name')
+            ->paginate($filters['per_page'] ?? 20);
+
+        return response()->json([
+            'data' => $readers->getCollection()->map(fn (User $reader) => $this->readerDirectoryData($reader, $cutoff))->values(),
+            'meta' => [
+                'current_page' => $readers->currentPage(),
+                'last_page' => $readers->lastPage(),
+                'per_page' => $readers->perPage(),
+                'total' => $readers->total(),
+            ],
+        ]);
+    }
+
+    public function likeReader(Request $request, User $reader, ReaderNotificationService $notifications)
+    {
+        abort_unless($request->user()->isReader(), 403);
+        abort_unless($reader->isReader(), 404);
+        if ((int) $reader->id === (int) $request->user()->id) {
+            throw ValidationException::withMessages(['reader' => 'You cannot send a like request to yourself.']);
+        }
+
+        $likeRequest = ReaderLikeRequest::query()->firstOrNew([
+            'sender_id' => $request->user()->id,
+            'recipient_id' => $reader->id,
+        ]);
+        $created = ! $likeRequest->exists;
+        $resent = $likeRequest->exists && $likeRequest->status === 'rejected';
+        if ($created || $resent) {
+            $likeRequest->status = 'pending';
+            $likeRequest->save();
+            $notifications->sendTranslated(
+                $reader,
+                'reader_like_request',
+                'New reader like request',
+                ':actor sent you a reader request.',
+                ['actor' => $request->user()->username ?: $request->user()->name],
+                ['like_request_id' => $likeRequest->id, 'reader_id' => $request->user()->id],
+            );
+        }
+
+        return response()->json([
+            'message' => $created || $resent ? 'Like request sent.' : 'Like request already exists.',
+            'data' => $this->likeRequestData($likeRequest->load(['sender', 'recipient']), $request->user()),
+        ], $created || $resent ? 201 : 200);
+    }
+
+    public function likeRequests(Request $request)
+    {
+        abort_unless($request->user()->isReader(), 403);
+        $filters = $request->validate([
+            'direction' => ['nullable', Rule::in(['received', 'sent', 'all'])],
+            'status' => ['nullable', Rule::in(['pending', 'accepted', 'rejected'])],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+        $direction = $filters['direction'] ?? 'all';
+        $query = ReaderLikeRequest::query()->with(['sender:id,name,username,profile_photo_path,last_seen_at', 'recipient:id,name,username,profile_photo_path,last_seen_at']);
+        if ($direction === 'received') {
+            $query->where('recipient_id', $request->user()->id);
+        } elseif ($direction === 'sent') {
+            $query->where('sender_id', $request->user()->id);
+        } else {
+            $query->where(fn ($builder) => $builder->where('sender_id', $request->user()->id)->orWhere('recipient_id', $request->user()->id));
+        }
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+        $items = $query->latest()->paginate($filters['per_page'] ?? 20);
+
+        return response()->json([
+            'data' => $items->getCollection()->map(fn (ReaderLikeRequest $item) => $this->likeRequestData($item, $request->user()))->values(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
+    }
+
+    public function respondToLikeRequest(Request $request, ReaderLikeRequest $likeRequest)
+    {
+        abort_unless($request->user()->isReader(), 403);
+        abort_unless((int) $likeRequest->recipient_id === (int) $request->user()->id, 403);
+        $payload = $request->validate(['action' => ['required', Rule::in(['accept', 'reject', 'decline'])]]);
+        if ($likeRequest->status !== 'pending') {
+            throw ValidationException::withMessages(['like_request' => 'Only pending requests can be answered.']);
+        }
+        $likeRequest->update(['status' => $payload['action'] === 'accept' ? 'accepted' : 'rejected']);
+
+        return response()->json([
+            'message' => 'Like request '.($payload['action'] === 'accept' ? 'accepted.' : 'declined.'),
+            'data' => $this->likeRequestData($likeRequest->fresh(['sender', 'recipient']), $request->user()),
+        ]);
+    }
+
     public function leaderboard(Request $request, LeaderboardService $leaderboard)
     {
         $payload = $request->validate([
@@ -1052,10 +1299,10 @@ class MobileController extends Controller
         $verifiedBooks = $duelService->verifiedBooks($user);
         $duels = Duel::query()
             ->where(fn ($query) => $query->where('challenger_id', $user->id)->orWhere('opponent_id', $user->id))
-            ->with(['book:id,title,slug', 'challenger:id,name', 'opponent:id,name'])
+            ->with(['book:id,title,slug', 'challenger:id,name,username,profile_photo_path,last_seen_at', 'opponent:id,name,username,profile_photo_path,last_seen_at', 'attempts:id,duel_id,quiz_id,user_id,score,submitted_at', 'attempts.quiz:id,title'])
             ->latest()
             ->get()
-            ->map(fn (Duel $duel) => $this->duelData($duel));
+            ->map(fn (Duel $duel) => $this->duelData($duel, $user));
 
         $books = $verifiedBooks->map(fn (Book $book) => [
             'id' => $book->id,
@@ -1064,6 +1311,10 @@ class MobileController extends Controller
             'opponents' => $duelService->verifiedOpponents($user, $book)->map(fn (User $opponent) => [
                 'id' => $opponent->id,
                 'name' => $opponent->name,
+                'username' => $opponent->username,
+                'profile_photo_url' => $this->storageUrl($opponent->profile_photo_path),
+                'is_online' => $opponent->last_seen_at?->greaterThanOrEqualTo(now()->subMinutes(2)) ?? false,
+                'last_seen_at' => $opponent->last_seen_at?->toIso8601String(),
             ])->values(),
         ])->values();
 
@@ -1074,6 +1325,105 @@ class MobileController extends Controller
                 'unlocked' => $verifiedBooks->isNotEmpty(),
                 'verified_books_count' => $verifiedBooks->count(),
             ],
+        ]);
+    }
+
+    public function showDuel(Request $request, Duel $duel)
+    {
+        $user = $request->user();
+        abort_unless($user->isReader(), 403);
+        abort_unless((int) $duel->challenger_id === (int) $user->id || (int) $duel->opponent_id === (int) $user->id, 404);
+        $duel->load([
+            'book:id,title,slug',
+            'challenger:id,name,username,profile_photo_path,last_seen_at',
+            'opponent:id,name,username,profile_photo_path,last_seen_at',
+            'attempts:id,duel_id,quiz_id,user_id,score,submitted_at',
+            'attempts.quiz:id,title',
+        ]);
+        $quizzes = Quiz::query()
+            ->where('book_id', $duel->book_id)
+            ->where('status', 'published')
+            ->whereHas('questions')
+            ->whereDoesntHave('questions', fn ($questions) => $questions->where('question_type', 'written_response'))
+            ->whereHas('book', fn ($books) => $books->where('status', 'published'))
+            ->orderBy('id')
+            ->get(['id', 'title', 'instructions', 'duration_minutes']);
+
+        return response()->json([
+            'data' => $this->duelData($duel, $user) + [
+                'available_quizzes' => $quizzes,
+            ],
+        ]);
+    }
+
+    public function submitDuelAnswers(Request $request, Duel $duel)
+    {
+        $user = $request->user();
+        abort_unless($user->isReader(), 403);
+        abort_unless((int) $duel->challenger_id === (int) $user->id || (int) $duel->opponent_id === (int) $user->id, 404);
+        $payload = $request->validate([
+            'quiz_id' => ['required', 'integer', 'exists:quizzes,id'],
+            'answers' => ['required', 'array'],
+        ]);
+        $quiz = Quiz::query()
+            ->with(['book', 'questions' => fn ($questions) => $questions->orderBy('sort_order')->with('answers')])
+            ->where('book_id', $duel->book_id)
+            ->where('status', 'published')
+            ->whereHas('questions')
+            ->whereDoesntHave('questions', fn ($questions) => $questions->where('question_type', 'written_response'))
+            ->whereHas('book', fn ($books) => $books->where('status', 'published'))
+            ->findOrFail($payload['quiz_id']);
+        if ($quiz->questions->contains(fn ($question) => $question->question_type === 'written_response')) {
+            throw ValidationException::withMessages(['quiz_id' => 'Written-response questions cannot be used in a duel.']);
+        }
+        $evaluation = QuizAnswerSelection::evaluate($payload['answers'], $quiz->questions);
+        $totalPoints = (int) $quiz->questions->sum('points');
+        $awardedPoints = collect($evaluation['responses'])->sum(fn (array $response) => (int) ($response['points_awarded'] ?? 0));
+        $score = $totalPoints > 0 ? (int) round(($awardedPoints / $totalPoints) * 100) : 0;
+
+        $updated = DB::transaction(function () use ($duel, $user, $quiz, $evaluation, $score) {
+            $locked = Duel::query()->whereKey($duel->id)->lockForUpdate()->firstOrFail();
+            abort_unless((int) $locked->challenger_id === (int) $user->id || (int) $locked->opponent_id === (int) $user->id, 404);
+            if (! in_array($locked->status, ['accepted', 'live'], true)) {
+                throw ValidationException::withMessages(['duel' => 'Answers can only be submitted after the invitation is accepted.']);
+            }
+            if ($locked->quiz_id && (int) $locked->quiz_id !== (int) $quiz->id) {
+                throw ValidationException::withMessages(['quiz_id' => 'Both readers must answer the same quiz.']);
+            }
+            if (DuelAttempt::query()->where('duel_id', $locked->id)->where('user_id', $user->id)->exists()) {
+                throw ValidationException::withMessages(['duel' => 'You have already submitted answers for this duel.']);
+            }
+
+            $locked->quiz_id ??= $quiz->id;
+            DuelAttempt::create([
+                'duel_id' => $locked->id,
+                'quiz_id' => $quiz->id,
+                'user_id' => $user->id,
+                'score' => $score,
+                'responses' => $evaluation['responses'],
+                'submitted_at' => now(),
+            ]);
+            $attemptCount = DuelAttempt::query()->where('duel_id', $locked->id)->count();
+            if ($attemptCount >= 2) {
+                $locked->status = 'completed';
+                $locked->completed_at = now();
+            } else {
+                $locked->status = 'live';
+            }
+            $locked->save();
+
+            return $locked->fresh([
+                'book:id,title,slug',
+                'challenger:id,name,username,profile_photo_path,last_seen_at',
+                'opponent:id,name,username,profile_photo_path,last_seen_at',
+                'attempts:id,duel_id,quiz_id,user_id,score,submitted_at',
+                'attempts.quiz:id,title',
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Duel answers submitted successfully.',
+            'data' => $this->duelData($updated, $user),
         ]);
     }
 
@@ -1089,24 +1439,25 @@ class MobileController extends Controller
 
         return response()->json([
             'message' => 'Duel invitation sent successfully.',
-            'data' => $this->duelData($duel->load(['book', 'challenger', 'opponent'])),
+            'data' => $this->duelData($duel->load(['book', 'challenger', 'opponent']), $request->user()),
         ], 201);
     }
 
     public function respondToDuel(Request $request, Duel $duel, DuelService $duelService, ReaderNotificationService $notifications)
     {
-        $payload = $request->validate(['action' => ['required', Rule::in(['accept', 'reject'])]]);
-        $updated = $duelService->respond($request->user(), $duel, $payload['action']);
+        $payload = $request->validate(['action' => ['required', Rule::in(['accept', 'reject', 'decline'])]]);
+        $action = $payload['action'] === 'decline' ? 'reject' : $payload['action'];
+        $updated = $duelService->respond($request->user(), $duel, $action);
         $notifications->sendTranslated($updated->challenger, 'duel_response', 'Duel invitation :status', ':actor :status your duel invitation.', ['actor' => $request->user()->name, 'status' => __($updated->status, [], $updated->challenger->locale ?: 'en')], ['duel_id' => $updated->id, 'status' => $updated->status]);
 
-        return response()->json(['message' => 'Duel invitation '.$payload['action'].'ed.', 'data' => $this->duelData($updated)]);
+        return response()->json(['message' => 'Duel invitation '.($action === 'accept' ? 'accepted.' : 'declined.'), 'data' => $this->duelData($updated, $request->user())]);
     }
 
     public function cancelDuel(Request $request, Duel $duel, DuelService $duelService)
     {
         $updated = $duelService->cancel($request->user(), $duel);
 
-        return response()->json(['message' => 'Duel invitation cancelled.', 'data' => $this->duelData($updated)]);
+        return response()->json(['message' => 'Duel invitation cancelled.', 'data' => $this->duelData($updated, $request->user())]);
     }
 
     public function showQuiz(Request $request, Quiz $quiz)
@@ -1153,6 +1504,12 @@ class MobileController extends Controller
             $percentScore = $totalPoints > 0 ? (int) round(($score / $totalPoints) * 100) : 0;
             $reviewStatus = $evaluation['needs_review'] ? 'pending_review' : 'graded';
             $passed = ! $evaluation['needs_review'] && $percentScore >= (int) $lockedQuiz->pass_mark;
+            $previousBest = (int) QuizAttempt::query()
+                ->where('quiz_id', $lockedQuiz->id)
+                ->where('user_id', $request->user()->id)
+                ->where('review_status', 'graded')
+                ->where('passed', true)
+                ->max('score');
 
             $attempt = QuizAttempt::create([
                 'quiz_id' => $lockedQuiz->id,
@@ -1175,8 +1532,12 @@ class MobileController extends Controller
                 'review_status' => $reviewStatus,
                 'attempt_id' => $attempt->id,
                 'attempts_used' => $attemptsCount + 1,
+                'reward_points' => $passed ? max(0, $percentScore - $previousBest) : 0,
             ];
         });
+
+        $result['reward_balance'] = app(LeaderboardService::class)->pointsForUser($request->user()->id);
+        $result['reward_label'] = 'Quiz leaderboard points';
 
         if ($result['review_status'] === 'graded') {
             $notifications->sendTranslated(
@@ -1211,8 +1572,23 @@ class MobileController extends Controller
         ];
     }
 
-    private function duelData(Duel $duel): array
+    private function duelData(Duel $duel, ?User $viewer = null): array
     {
+        $duel->loadMissing([
+            'quiz:id,title',
+            'attempts:id,duel_id,quiz_id,user_id,score,submitted_at',
+            'attempts.quiz:id,title',
+        ]);
+        $attempts = $duel->attempts->keyBy('user_id');
+        $challengerAttempt = $attempts->get($duel->challenger_id);
+        $opponentAttempt = $attempts->get($duel->opponent_id);
+        $winnerId = null;
+        if ($challengerAttempt && $opponentAttempt && $challengerAttempt->score !== $opponentAttempt->score) {
+            $winnerId = (int) ($challengerAttempt->score > $opponentAttempt->score ? $duel->challenger_id : $duel->opponent_id);
+        }
+        $viewerAttempt = $viewer ? $attempts->get($viewer->id) : null;
+        $participant = $viewer && ((int) $viewer->id === (int) $duel->challenger_id || (int) $viewer->id === (int) $duel->opponent_id);
+
         return [
             'id' => $duel->id,
             'book' => $duel->book ? [
@@ -1223,13 +1599,74 @@ class MobileController extends Controller
             'challenger' => $duel->challenger ? [
                 'id' => $duel->challenger->id,
                 'name' => $duel->challenger->name,
+                'username' => $duel->challenger->username,
+                'profile_photo_url' => $this->storageUrl($duel->challenger->profile_photo_path),
+                'is_online' => $duel->challenger->last_seen_at?->greaterThanOrEqualTo(now()->subMinutes(2)) ?? false,
+                'last_seen_at' => $duel->challenger->last_seen_at?->toIso8601String(),
             ] : null,
             'opponent' => $duel->opponent ? [
                 'id' => $duel->opponent->id,
                 'name' => $duel->opponent->name,
+                'username' => $duel->opponent->username,
+                'profile_photo_url' => $this->storageUrl($duel->opponent->profile_photo_path),
+                'is_online' => $duel->opponent->last_seen_at?->greaterThanOrEqualTo(now()->subMinutes(2)) ?? false,
+                'last_seen_at' => $duel->opponent->last_seen_at?->toIso8601String(),
             ] : null,
+            'quiz' => $duel->quiz ? ['id' => $duel->quiz->id, 'title' => $duel->quiz->title] : null,
             'status' => $duel->status,
+            'completed_at' => $duel->completed_at?->toIso8601String(),
+            'challenger_result' => $challengerAttempt ? [
+                'submitted' => true,
+                'score' => $duel->status === 'completed' || ($viewer && (int) $viewer->id === (int) $duel->challenger_id)
+                    ? (int) $challengerAttempt->score
+                    : null,
+                'submitted_at' => $challengerAttempt->submitted_at?->toIso8601String(),
+            ] : ['submitted' => false, 'score' => null, 'submitted_at' => null],
+            'opponent_result' => $opponentAttempt ? [
+                'submitted' => true,
+                'score' => $duel->status === 'completed' || ($viewer && (int) $viewer->id === (int) $duel->opponent_id)
+                    ? (int) $opponentAttempt->score
+                    : null,
+                'submitted_at' => $opponentAttempt->submitted_at?->toIso8601String(),
+            ] : ['submitted' => false, 'score' => null, 'submitted_at' => null],
+            'winner_id' => $winnerId,
+            'my_result' => $viewerAttempt ? ['submitted' => true, 'score' => (int) $viewerAttempt->score] : ['submitted' => false, 'score' => null],
+            'permissions' => [
+                'can_accept' => $viewer && (int) $duel->opponent_id === (int) $viewer->id && $duel->status === 'pending',
+                'can_decline' => $viewer && (int) $duel->opponent_id === (int) $viewer->id && $duel->status === 'pending',
+                'can_cancel' => $viewer && (int) $duel->challenger_id === (int) $viewer->id && in_array($duel->status, ['pending', 'accepted', 'scheduled'], true),
+                'can_submit_answers' => $participant && in_array($duel->status, ['accepted', 'live'], true) && ! $viewerAttempt,
+            ],
             'created_at' => $duel->created_at,
+        ];
+    }
+
+    private function readerDirectoryData(User $reader, ?Carbon $onlineCutoff = null): array
+    {
+        $onlineCutoff ??= now()->subMinutes(2);
+
+        return [
+            'id' => $reader->id,
+            'name' => $reader->name,
+            'username' => $reader->username,
+            'profile_photo_url' => $this->storageUrl($reader->profile_photo_path),
+            'is_online' => $reader->last_seen_at?->greaterThanOrEqualTo($onlineCutoff) ?? false,
+            'last_seen_at' => $reader->last_seen_at?->toIso8601String(),
+        ];
+    }
+
+    private function likeRequestData(ReaderLikeRequest $likeRequest, User $viewer): array
+    {
+        return [
+            'id' => $likeRequest->id,
+            'status' => $likeRequest->status,
+            'sender' => $likeRequest->sender ? $this->readerDirectoryData($likeRequest->sender) : null,
+            'recipient' => $likeRequest->recipient ? $this->readerDirectoryData($likeRequest->recipient) : null,
+            'permissions' => [
+                'can_respond' => (int) $likeRequest->recipient_id === (int) $viewer->id && $likeRequest->status === 'pending',
+            ],
+            'created_at' => $likeRequest->created_at?->toIso8601String(),
+            'updated_at' => $likeRequest->updated_at?->toIso8601String(),
         ];
     }
 

@@ -55,6 +55,10 @@ The portal supports English (`en`) and Kiswahili (`sw`). Visitors can switch lan
 
 Swagger lists every registered Android API operation. Select Production, Local development, or Android emulator as the server at the top of the page. The production base URL is `https://arenayakusoma.eportsolutions.co.tz/api`.
 
+The mobile contract includes `PUT /api/books/{book}/progress` (with legacy page-number aliases), a JSON PDF chapter manifest at `GET /api/books/{book}/content` and the raw PDF at `/api/books/{book}/content/pdf`. Reader social routes include `/api/readers`, `/api/readers/{reader}/like`, and `/api/like-requests`. Duel detail and answer submission use `GET /api/duels/{duel}` and `POST /api/duels/{duel}/answers`. Reader activity and quiz points are available from `/api/activity` and `/api/rewards/history`; `DELETE /api/account` requires the account password. Administrators can review improvement ideas through `/api/staff/ideas`.
+
+Deploy the API changes by running `php artisan migrate --force`. This adds duel answer storage and reader like-request storage. Quiz results report newly earned leaderboard points and the updated points balance; the reward history uses the same best-passed-score rules as the quiz leaderboard.
+
 All API paths below are relative to the `/api` base URL. Except for authentication, documentation, and the public quiz-performance endpoint, send the token returned by register or login on every request:
 
 ```http

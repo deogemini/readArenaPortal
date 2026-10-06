@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileController;
 use App\Http\Controllers\Api\PublicBookPerformanceController;
 use App\Http\Controllers\Api\ReaderIdeaController;
+use App\Http\Controllers\Api\StaffReaderIdeaController;
 use App\Http\Controllers\Api\TranslationController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,9 +32,17 @@ Route::middleware(['auth:sanctum', 'set.locale', 'track.user.activity'])->group(
     Route::get('/feedback/{idea}', [ReaderIdeaController::class, 'show'])->name('api.reader-ideas.show');
     Route::get('/feedback/{idea}/attachment', [ReaderIdeaController::class, 'downloadAttachment'])->name('api.reader-ideas.attachment');
 
+    Route::get('/staff/ideas', [StaffReaderIdeaController::class, 'index'])->name('api.staff-ideas.index');
+    Route::get('/staff/ideas/{idea}', [StaffReaderIdeaController::class, 'show'])->name('api.staff-ideas.show');
+    Route::patch('/staff/ideas/{idea}', [StaffReaderIdeaController::class, 'update'])->name('api.staff-ideas.update');
+    Route::get('/staff/ideas/{idea}/attachment', [StaffReaderIdeaController::class, 'attachment'])->name('api.staff-ideas.attachment');
+
     Route::get('/language', [MobileController::class, 'language']);
     Route::patch('/language', [MobileController::class, 'updateLanguage']);
     Route::post('/auth/logout', [MobileController::class, 'logout']);
+    Route::delete('/account', [MobileController::class, 'destroyAccount']);
+    Route::get('/activity', [MobileController::class, 'activity']);
+    Route::get('/rewards/history', [MobileController::class, 'rewardHistory']);
     Route::get('/dashboard', [MobileController::class, 'dashboard']);
     Route::get('/notifications', [MobileController::class, 'notifications']);
     Route::patch('/notifications/read-all', [MobileController::class, 'markAllNotificationsRead']);
@@ -51,7 +60,9 @@ Route::middleware(['auth:sanctum', 'set.locale', 'track.user.activity'])->group(
     Route::get('/books', [MobileController::class, 'books']);
     Route::get('/books/{book}', [MobileController::class, 'showBook']);
     Route::get('/books/{book}/content', [MobileController::class, 'bookContent'])->name('api.books.content');
+    Route::get('/books/{book}/content/pdf', [MobileController::class, 'bookContentPdf'])->name('api.books.content.pdf');
     Route::post('/books/{book}/progress', [MobileController::class, 'syncProgress']);
+    Route::put('/books/{book}/progress', [MobileController::class, 'syncProgress']);
     Route::get('/reading/progress', [MobileController::class, 'readingProgress']);
     Route::get('/shelf', [MobileController::class, 'shelf']);
     Route::put('/books/{book}/shelf', [MobileController::class, 'updateShelf']);
@@ -87,8 +98,14 @@ Route::middleware(['auth:sanctum', 'set.locale', 'track.user.activity'])->group(
     Route::post('/shows/{show}/applications', [MobileController::class, 'applyToShow']);
     Route::delete('/show-applications/{application}', [MobileController::class, 'withdrawShowApplication']);
     Route::get('/leaderboard', [MobileController::class, 'leaderboard']);
+    Route::get('/readers', [MobileController::class, 'readers']);
+    Route::post('/readers/{reader}/like', [MobileController::class, 'likeReader'])->middleware('throttle:10,1');
+    Route::get('/like-requests', [MobileController::class, 'likeRequests']);
+    Route::patch('/like-requests/{likeRequest}/respond', [MobileController::class, 'respondToLikeRequest']);
     Route::get('/duels', [MobileController::class, 'duels']);
     Route::post('/duels', [MobileController::class, 'storeDuel']);
+    Route::get('/duels/{duel}', [MobileController::class, 'showDuel']);
+    Route::post('/duels/{duel}/answers', [MobileController::class, 'submitDuelAnswers']);
     Route::patch('/duels/{duel}/respond', [MobileController::class, 'respondToDuel']);
     Route::patch('/duels/{duel}/cancel', [MobileController::class, 'cancelDuel']);
 

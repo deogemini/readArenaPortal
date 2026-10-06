@@ -33,7 +33,11 @@
     { "name": "Goals", "description": "Reading goal management" },
     { "name": "Lessons", "description": "Reader lessons" },
     { "name": "Shows", "description": "Scheduled shows" },
-    { "name": "Duels", "description": "Verified reader duel invitations" },
+    { "name": "Duels", "description": "Verified reader duel invitations and scored quiz matches" },
+    { "name": "Social", "description": "Reader directory and mutual like requests" },
+    { "name": "Activity", "description": "Reader activity and quiz reward history" },
+    { "name": "Account", "description": "Account lifecycle operations" },
+    { "name": "Staff Ideas", "description": "Administrator review endpoints for reader ideas" },
     { "name": "Leaderboard", "description": "Reading-target and quiz-competition rankings for readers" },
     { "name": "Recommendations", "description": "Reader book recommendations" },
     { "name": "Reviews", "description": "Reader ratings and moderated book reviews" },
@@ -423,15 +427,29 @@
     },
     "/api/books/{book}/content": {
       "get": {
-        "tags": ["Books"], "summary": "Stream the published book PDF to an authenticated reader", "security": [{ "bearerAuth": [] }],
+        "tags": ["Books"], "summary": "Get the chapter manifest for a published book", "description": "Book content is currently stored as PDFs. The manifest contains one PDF-backed chapter for the full book. Use its content_url with the bearer token, or request ?format=pdf for the streamed PDF response.", "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }],
-        "responses": { "200": { "description": "PDF content streamed with private cache headers", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } } }, "401": { "description": "Unauthenticated" }, "404": { "description": "Book content not found" } }
+        "responses": { "200": { "description": "JSON content manifest", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BookContentResponse" } } } }, "401": { "description": "Unauthenticated" }, "403": { "description": "Only readers can access book content" }, "404": { "description": "Book content not found" } }
+      }
+    },
+    "/api/books/{book}/content/pdf": {
+      "get": {
+        "tags": ["Books"], "summary": "Stream the published book PDF", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "PDF streamed with private cache headers", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } } }, "401": { "description": "Unauthenticated" }, "403": { "description": "Only readers can access book content" }, "404": { "description": "Book PDF not found" } }
       }
     },
     "/api/books/{book}/progress": {
+      "put": {
+        "tags": ["Reading"], "summary": "Save or replace reading progress for a book", "description": "Canonical Android method. Send one absolute page number as current_page, page, page_number, pageNumber, last_page_read, lastPageRead, or currentPage.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" }, "description": "Book ID" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProgressSyncRequest" } } } },
+        "responses": { "200": { "description": "Progress synced successfully", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProgressSyncResponse" } } } }, "422": { "description": "Invalid page number" } }
+      },
       "post": {
         "tags": ["Reading"],
-        "summary": "Sync reading progress for a book",
+        "summary": "Save reading progress for a book (legacy POST alias)",
+        "description": "PUT is the canonical mobile method. Supply one absolute page number field: current_page, page, page_number, pageNumber, last_page_read, lastPageRead, or currentPage.",
         "security": [
           { "bearerAuth": [] }
         ],
@@ -462,6 +480,27 @@
             }
           }
         }
+      }
+    },
+    "/api/account": {
+      "delete": {
+        "tags": ["Account"], "summary": "Permanently delete the signed-in account", "description": "Requires the account password. All Sanctum tokens and dependent account data are deleted.", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["password"], "properties": { "password": { "type": "string", "format": "password" } } } } } },
+        "responses": { "200": { "description": "Account deleted" }, "401": { "description": "Unauthenticated" }, "422": { "description": "Password is incorrect or missing" } }
+      }
+    },
+    "/api/activity": {
+      "get": {
+        "tags": ["Activity"], "summary": "List recent activity by the signed-in reader", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } }, { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }],
+        "responses": { "200": { "description": "Paginated Android and web activity owned by the signed-in reader", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ActivityResponse" } } } } }
+      }
+    },
+    "/api/rewards/history": {
+      "get": {
+        "tags": ["Activity"], "summary": "List quiz leaderboard points earned by the reader", "description": "Only a new personal best on a passed quiz increases points. The balance follows the quiz leaderboard score calculation.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } }, { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }],
+        "responses": { "200": { "description": "Paginated point history and current balance", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RewardsHistoryResponse" } } } } }
       }
     },
     "/api/quizzes/{quiz}/submit": {
@@ -552,7 +591,7 @@
     },
     "/api/notification-preferences": {
       "get": { "tags": ["Notifications"], "summary": "Get in-app notification preferences", "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Preference state for each supported notification type" } } },
-      "patch": { "tags": ["Notifications"], "summary": "Update in-app notification preferences", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["preferences"], "properties": { "preferences": { "type": "array", "items": { "type": "object", "required": ["type", "in_app_enabled"], "properties": { "type": { "type": "string", "enum": ["quiz_passed", "quiz_failed", "duel_invitation", "duel_response", "show_rsvp", "show_application_status", "goal_milestone"] }, "in_app_enabled": { "type": "boolean" } } } } } } } } }, "responses": { "200": { "description": "Notification preferences updated" }, "422": { "description": "Invalid preference type or value" } } }
+      "patch": { "tags": ["Notifications"], "summary": "Update in-app notification preferences", "security": [{ "bearerAuth": [] }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["preferences"], "properties": { "preferences": { "type": "array", "items": { "type": "object", "required": ["type", "in_app_enabled"], "properties": { "type": { "type": "string", "enum": ["quiz_passed", "quiz_failed", "duel_invitation", "duel_response", "reader_like_request", "show_rsvp", "show_application_status", "goal_milestone"] }, "in_app_enabled": { "type": "boolean" } } } } } } } } }, "responses": { "200": { "description": "Notification preferences updated" }, "422": { "description": "Invalid preference type or value" } } }
     },
     "/api/push-token": {
       "put": {
@@ -674,7 +713,7 @@
     "/api/shows": {
       "get": {
         "tags": ["Shows"], "summary": "List upcoming scheduled shows", "security": [{ "bearerAuth": [] }],
-        "responses": { "200": { "description": "Scheduled shows with optional book details" } }
+        "responses": { "200": { "description": "Scheduled shows with registration counts, viewer RSVP state and optional book data", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ShowsResponse" } } } } }
       }
     },
     "/api/shows/{show}/application-options": {
@@ -724,10 +763,10 @@
       "patch": {
         "tags": ["Duels"],
         "summary": "Accept or reject a pending invitation as the invited reader",
-        "description": "Sends an in-app notification to the challenger after accepting or rejecting.",
+        "description": "Only the invited opponent can answer a pending invitation. Use action=accept to accept or action=decline (reject is an accepted compatibility alias) to decline. The response also includes explicit can_accept, can_decline, can_cancel, and can_submit_answers permissions.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "duel", "in": "path", "required": true, "schema": { "type": "integer" } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["action"], "properties": { "action": { "type": "string", "enum": ["accept", "reject"] } } } } } },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["action"], "properties": { "action": { "type": "string", "enum": ["accept", "reject", "decline"] } } } } } },
         "responses": {
           "200": { "description": "Invitation response saved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuelResponse" } } } },
           "403": { "description": "Only the invited reader can respond" },
@@ -746,6 +785,74 @@
           "403": { "description": "Only the challenger can cancel" },
           "422": { "description": "This duel can no longer be cancelled" }
         }
+      }
+    },
+    "/api/duels/{duel}": {
+      "get": {
+        "tags": ["Duels"], "summary": "Get the details of a duel you participate in", "description": "Only the challenger and invited opponent may read a duel. The response includes candidate quizzes and can_accept/can_decline/can_cancel/can_submit_answers permissions for the signed-in reader.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "duel", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Duel, participant presence, quiz choices, scores and permissions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuelDetailResponse" } } } }, "403": { "description": "Only reader accounts can access duels" }, "404": { "description": "Duel not found for this reader" } }
+      }
+    },
+    "/api/duels/{duel}/answers": {
+      "post": {
+        "tags": ["Duels"], "summary": "Submit answers for an accepted duel", "description": "The quiz must be published and belong to the duel book. The first answer submission locks the quiz for both participants. Each participant can submit once; written-response questions cannot be used in a duel. The duel completes after both scores are saved.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "duel", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuelAnswersRequest" } } } },
+        "responses": { "200": { "description": "Submitted result and updated duel status. A participant sees their own score immediately; both scores are revealed when both have submitted.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DuelResponse" } } } }, "404": { "description": "Duel or quiz not found for this reader" }, "422": { "description": "The duel is not accepted, answers are invalid, another quiz was locked, or answers were already submitted" } }
+      }
+    },
+    "/api/readers": {
+      "get": {
+        "tags": ["Social"], "summary": "Find readers for the active-reader picker", "description": "Returns reader profile photos and online presence. is_online is true when last_seen_at is within two minutes. Set book_id to limit results to readers who have passed a published quiz for that book.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 120 } }, { "name": "book_id", "in": "query", "schema": { "type": "integer" } }, { "name": "online_only", "in": "query", "schema": { "type": "boolean" } }, { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } }, { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }],
+        "responses": { "200": { "description": "Paginated active-reader picker results", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReadersResponse" } } } }, "403": { "description": "Only readers can browse the directory" } }
+      }
+    },
+    "/api/readers/{reader}/like": {
+      "post": {
+        "tags": ["Social"], "summary": "Send a like request to a reader", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "reader", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "201": { "description": "Like request created and recipient notified", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LikeRequestResponse" } } } }, "200": { "description": "Existing request returned", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LikeRequestResponse" } } } }, "403": { "description": "Only readers can send requests" }, "404": { "description": "Target reader not found" }, "422": { "description": "Cannot send a request to yourself" } }
+      }
+    },
+    "/api/like-requests": {
+      "get": {
+        "tags": ["Social"], "summary": "List reader like requests", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "direction", "in": "query", "schema": { "type": "string", "enum": ["received", "sent", "all"], "default": "all" } }, { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "accepted", "rejected"] } }, { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } }, { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }],
+        "responses": { "200": { "description": "Paginated sent/received requests with response permissions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LikeRequestsResponse" } } } }, "403": { "description": "Only readers can use like requests" } }
+      }
+    },
+    "/api/like-requests/{likeRequest}/respond": {
+      "patch": {
+        "tags": ["Social"], "summary": "Accept or reject a received like request", "description": "Only the recipient may respond, and the request must be pending.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "likeRequest", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["action"], "properties": { "action": { "type": "string", "enum": ["accept", "reject", "decline"] } } } } } },
+        "responses": { "200": { "description": "Updated request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LikeRequestResponse" } } } }, "403": { "description": "Only the recipient may respond" }, "422": { "description": "Request is not pending" } }
+      }
+    },
+    "/api/staff/ideas": {
+      "get": {
+        "tags": ["Staff Ideas"], "summary": "List improvement ideas for portal staff", "description": "Administrator role required. Supports status filtering and text search.", "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "status", "in": "query", "schema": { "type": "string", "enum": ["new", "reviewing", "planned", "completed", "declined"] } }, { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 120 } }, { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } }, { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50 } }],
+        "responses": { "200": { "description": "Paginated improvement ideas with submitter and attachment details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StaffIdeasResponse" } } } }, "403": { "description": "Administrator access required" } }
+      }
+    },
+    "/api/staff/ideas/{idea}": {
+      "get": {
+        "tags": ["Staff Ideas"], "summary": "Get an idea for staff review", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "idea", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Idea and submitting reader", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StaffIdeaResponse" } } } }, "403": { "description": "Administrator access required" }, "404": { "description": "Idea not found" } }
+      },
+      "patch": {
+        "tags": ["Staff Ideas"], "summary": "Update an idea review status or internal notes", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "idea", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["new", "reviewing", "planned", "completed", "declined"] }, "admin_notes": { "type": ["string", "null"], "maxLength": 5000 } } } } } },
+        "responses": { "200": { "description": "Idea updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StaffIdeaResponse" } } } }, "403": { "description": "Administrator access required" }, "422": { "description": "Invalid status or notes" } }
+      }
+    },
+    "/api/staff/ideas/{idea}/attachment": {
+      "get": {
+        "tags": ["Staff Ideas"], "summary": "Download a reader idea attachment", "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "idea", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Private attachment download", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } }, "403": { "description": "Administrator access required" }, "404": { "description": "Attachment not found" } }
       }
     },
     "/api/leaderboard": {
@@ -967,7 +1074,8 @@
         "properties": {
           "id": { "type": "integer" },
           "title": { "type": "string" },
-          "slug": { "type": "string" }
+          "slug": { "type": "string" },
+          "cover_image_url": { "type": ["string", "null"], "format": "uri" }
         }
       },
       "ShowApplicationRecord": {
@@ -1001,6 +1109,24 @@
             }
           }
         }
+      },
+      "ShowRecord": {
+        "type": "object",
+        "required": ["id", "title", "start_at", "status", "rsvp_count", "is_registered", "book"],
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "start_at": { "type": "string", "format": "date-time" },
+          "status": { "type": "string", "enum": ["scheduled"] },
+          "rsvp_count": { "type": "integer" },
+          "is_registered": { "type": "boolean" },
+          "book": { "oneOf": [{ "$ref": "#/components/schemas/ShowApplicationBook" }, { "type": "null" }] }
+        }
+      },
+      "ShowsResponse": {
+        "type": "object",
+        "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/ShowRecord" } } }
       },
       "QuizLeaderboardEntry": {
         "type": "object",
@@ -1054,7 +1180,11 @@
         "type": "object",
         "properties": {
           "id": { "type": "integer" },
-          "name": { "type": "string" }
+          "name": { "type": "string" },
+          "username": { "type": ["string", "null"] },
+          "profile_photo_url": { "type": ["string", "null"], "format": "uri" },
+          "is_online": { "type": "boolean", "description": "True when activity was seen within two minutes." },
+          "last_seen_at": { "type": ["string", "null"], "format": "date-time" }
         }
       },
       "DuelBook": {
@@ -1072,7 +1202,14 @@
           "book": { "$ref": "#/components/schemas/DuelBook" },
           "challenger": { "$ref": "#/components/schemas/DuelReader" },
           "opponent": { "$ref": "#/components/schemas/DuelReader" },
+          "quiz": { "oneOf": [{ "$ref": "#/components/schemas/DuelQuiz" }, { "type": "null" }] },
           "status": { "type": "string", "enum": ["pending", "accepted", "rejected", "cancelled", "scheduled", "waiting", "live", "paused", "completed"] },
+          "completed_at": { "type": ["string", "null"], "format": "date-time" },
+          "challenger_result": { "$ref": "#/components/schemas/DuelParticipantResult" },
+          "opponent_result": { "$ref": "#/components/schemas/DuelParticipantResult" },
+          "my_result": { "$ref": "#/components/schemas/DuelMyResult" },
+          "winner_id": { "type": ["integer", "null"], "description": "Null until both have submitted or when the scores tie." },
+          "permissions": { "$ref": "#/components/schemas/DuelPermissions" },
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
@@ -1106,6 +1243,35 @@
               "verified_books_count": { "type": "integer" }
             }
           }
+        }
+      },
+      "DuelQuiz": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" }, "title": { "type": "string" } }
+      },
+      "DuelParticipantResult": {
+        "type": "object",
+        "properties": { "submitted": { "type": "boolean" }, "score": { "type": ["integer", "null"], "description": "The signed-in participant sees their own score immediately. The other participant's score is null until both submit." }, "submitted_at": { "type": ["string", "null"], "format": "date-time" } }
+      },
+      "DuelMyResult": {
+        "type": "object",
+        "properties": { "submitted": { "type": "boolean" }, "score": { "type": ["integer", "null"] } }
+      },
+      "DuelPermissions": {
+        "type": "object",
+        "description": "Viewer-specific actions. Only the invited opponent can accept or decline; only the challenger can cancel; both participants can answer after acceptance.",
+        "properties": { "can_accept": { "type": "boolean" }, "can_decline": { "type": "boolean" }, "can_cancel": { "type": "boolean" }, "can_submit_answers": { "type": "boolean" } }
+      },
+      "DuelDetailResponse": {
+        "type": "object",
+        "properties": { "data": { "allOf": [{ "$ref": "#/components/schemas/DuelRecord" }], "properties": { "available_quizzes": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "integer" }, "title": { "type": "string" }, "instructions": { "type": ["string", "null"] }, "duration_minutes": { "type": "integer" } } } } } } }
+      },
+      "DuelAnswersRequest": {
+        "type": "object",
+        "required": ["quiz_id", "answers"],
+        "properties": {
+          "quiz_id": { "type": "integer", "description": "Published quiz belonging to the duel book; locked by the first participant submission." },
+          "answers": { "type": "object", "description": "Map question IDs to answer IDs, arrays of selected answer IDs, or text responses.", "additionalProperties": { "oneOf": [{ "type": "integer" }, { "type": "array", "items": { "type": "integer" }, "minItems": 1, "uniqueItems": true }, { "type": "string", "maxLength": 1000 }] } }
         }
       },
       "BookSummary": {
@@ -1355,12 +1521,97 @@
           }
         }
       },
+      "BookContentResponse": {
+        "type": "object",
+        "description": "PDF-backed chapter manifest. The library currently stores a single PDF per book, so chapters contains one item for the complete book.",
+        "properties": {
+          "data": { "type": "object", "properties": {
+            "book_id": { "type": "integer" },
+            "title": { "type": "string" },
+            "format": { "type": "string", "enum": ["pdf"] },
+            "page_count": { "type": ["integer", "null"] },
+            "chapters": { "type": "array", "items": { "type": "object", "properties": {
+              "id": { "type": "string" },
+              "number": { "type": "integer" },
+              "title": { "type": "string" },
+              "start_page": { "type": "integer" },
+              "end_page": { "type": ["integer", "null"] },
+              "content_url": { "type": "string", "format": "uri", "description": "Authenticated PDF URL for this reading part." },
+              "content_type": { "type": "string", "enum": ["application/pdf"] }
+            } } }
+          } }
+        }
+      },
+      "ReaderDirectoryEntry": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "username": { "type": ["string", "null"] },
+          "profile_photo_url": { "type": ["string", "null"], "format": "uri" },
+          "is_online": { "type": "boolean", "description": "True when last activity was within the previous two minutes." },
+          "last_seen_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": { "current_page": { "type": "integer" }, "last_page": { "type": "integer" }, "per_page": { "type": "integer" }, "total": { "type": "integer" } }
+      },
+      "ReadersResponse": {
+        "type": "object",
+        "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/ReaderDirectoryEntry" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } }
+      },
+      "LikeRequestRecord": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+          "sender": { "$ref": "#/components/schemas/ReaderDirectoryEntry" },
+          "recipient": { "$ref": "#/components/schemas/ReaderDirectoryEntry" },
+          "permissions": { "type": "object", "properties": { "can_respond": { "type": "boolean" } } },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "LikeRequestResponse": { "type": "object", "properties": { "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/LikeRequestRecord" } } },
+      "LikeRequestsResponse": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/LikeRequestRecord" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } },
+      "ActivityEvent": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" }, "activity_key": { "type": "string" }, "activity": { "type": "string" }, "platform": { "type": "string", "enum": ["android_app", "web_portal"] }, "created_at": { "type": "string", "format": "date-time" } }
+      },
+      "ActivityResponse": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/ActivityEvent" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } },
+      "RewardHistoryItem": {
+        "type": "object",
+        "properties": { "attempt_id": { "type": "integer" }, "quiz_id": { "type": "integer" }, "quiz_title": { "type": ["string", "null"] }, "score": { "type": "integer" }, "points_earned": { "type": "integer" }, "total_points": { "type": "integer" }, "created_at": { "type": "string", "format": "date-time" } }
+      },
+      "RewardsHistoryResponse": {
+        "type": "object",
+        "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/RewardHistoryItem" } }, "meta": { "allOf": [{ "$ref": "#/components/schemas/PaginationMeta" }], "properties": { "points_balance": { "type": "integer" }, "scoring": { "type": "string" } } } }
+      },
+      "StaffIdea": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" }, "title": { "type": "string" }, "description": { "type": "string" }, "category": { "type": "string" },
+          "status": { "type": "string", "enum": ["new", "reviewing", "planned", "completed", "declined"] }, "admin_notes": { "type": ["string", "null"] },
+          "reader": { "type": ["object", "null"], "properties": { "id": { "type": "integer" }, "name": { "type": "string" }, "username": { "type": ["string", "null"] }, "email": { "type": "string", "format": "email" } } },
+          "attachment": { "type": ["object", "null"], "properties": { "name": { "type": "string" }, "mime_type": { "type": "string" }, "size_bytes": { "type": "integer" }, "download_url": { "type": "string", "format": "uri" } } },
+          "created_at": { "type": "string", "format": "date-time" }, "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "StaffIdeaResponse": { "type": "object", "properties": { "data": { "$ref": "#/components/schemas/StaffIdea" } } },
+      "StaffIdeasResponse": { "type": "object", "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/StaffIdea" } }, "meta": { "$ref": "#/components/schemas/PaginationMeta" } } },
       "ProgressSyncRequest": {
         "type": "object",
-        "required": ["current_page"],
         "properties": {
-          "current_page": { "type": "integer", "example": 25 }
-        }
+          "current_page": { "type": "integer", "minimum": 1, "example": 25 },
+          "page": { "type": "integer", "minimum": 1, "description": "Compatibility alias for current_page." },
+          "page_number": { "type": "integer", "minimum": 1, "description": "Compatibility alias for current_page." },
+          "pageNumber": { "type": "integer", "minimum": 1, "description": "Compatibility alias for current_page." },
+          "last_page_read": { "type": "integer", "minimum": 1, "description": "Compatibility alias for current_page." },
+          "lastPageRead": { "type": "integer", "minimum": 1, "description": "Compatibility alias for current_page." },
+          "currentPage": { "type": "integer", "minimum": 1, "description": "Compatibility alias for current_page." }
+        },
+        "anyOf": [{ "required": ["current_page"] }, { "required": ["page"] }, { "required": ["page_number"] }, { "required": ["pageNumber"] }, { "required": ["last_page_read"] }, { "required": ["lastPageRead"] }, { "required": ["currentPage"] }]
       },
       "ProgressSyncResponse": {
         "type": "object",
@@ -1412,7 +1663,10 @@
               "passed": { "type": ["boolean", "null"], "description": "Null until written responses are reviewed." },
               "review_status": { "type": "string", "enum": ["graded", "pending_review"] },
               "attempt_id": { "type": "integer" },
-              "attempts_used": { "type": "integer" }
+              "attempts_used": { "type": "integer" },
+              "reward_points": { "type": "integer", "description": "New quiz leaderboard points added by this attempt; zero when it does not increase a passed quiz best score." },
+              "reward_balance": { "type": "integer", "description": "Current quiz leaderboard point balance." },
+              "reward_label": { "type": "string" }
             }
           }
         }

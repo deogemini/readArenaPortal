@@ -115,7 +115,7 @@ test('android api supports duel invitation, response and cancellation', function
     ])->assertCreated()->assertJsonPath('data.status', 'pending');
     $duelId = $response->json('data.id');
 
-    $this->actingAs($opponent, 'sanctum')->patchJson('/api/duels/'.$duelId.'/respond', ['action' => 'reject'])
+    $this->actingAs($opponent, 'sanctum')->patchJson('/api/duels/'.$duelId.'/respond', ['action' => 'decline'])
         ->assertOk()
         ->assertJsonPath('data.status', 'rejected');
 
