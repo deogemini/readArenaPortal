@@ -20,6 +20,8 @@ Route::get('/translations/{locale}.json', function (string $locale) {
 })->name('translations.show');
 Route::get('/about', [PublicController::class, 'about'])->name('about');
 Route::view('/privacy-policy', 'public.privacy-policy')->name('privacy-policy');
+Route::view('/account-deletion', 'public.account-deletion')->name('account-deletion');
+Route::view('/data-deletion', 'public.account-deletion')->name('data-deletion');
 Route::get('/library', [PublicController::class, 'library'])->name('library');
 Route::get('/pro-arena', [PublicController::class, 'proArena'])->name('pro-arena');
 Route::get('/leaderboard', [PublicController::class, 'leaderboard'])->name('leaderboard');

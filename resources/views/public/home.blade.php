@@ -181,6 +181,7 @@
                 <h4 class="font-semibold uppercase tracking-[0.2em] text-[#1B0D05]">Legal</h4>
                 <ul class="mt-4 space-y-2 text-sm text-[#5e544d]">
                     <li><a href="{{ route('privacy-policy') }}" class="transition hover:text-[#1B0D05]">Privacy Policy</a></li>
+                    <li><a href="{{ route('account-deletion') }}" class="transition hover:text-[#1B0D05]">Request account deletion</a></li>
                     <li>Terms & Conditions</li>
                     <li>Reader’s Code</li>
                 </ul>

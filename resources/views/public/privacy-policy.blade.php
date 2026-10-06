@@ -130,7 +130,7 @@
                     <h2 class="mt-1 font-serif text-2xl text-[#1B0D05]">Retention and account deletion</h2>
                     <p class="mt-3 text-sm leading-7 text-[#5e544d]">We keep account information while your account is active and as needed to provide the service. You can update your profile or delete your account from Profile settings in the website; the Android application also provides account deletion through its account API.</p>
                     <p class="mt-3 text-sm leading-7 text-[#5e544d]">Account deletion removes the account and associated service records, profile photo, private idea attachments, notifications, and API tokens. Limited information may be retained where needed for legal obligations, security, dispute resolution, or backups and technical logs until their normal removal.</p>
-                    <p class="mt-3 text-sm leading-7 text-[#5e544d]">You can also email us to request access to, correction of, or deletion of your information.</p>
+                    <p class="mt-3 text-sm leading-7 text-[#5e544d]">If you no longer have the app installed, use our <a href="{{ route('account-deletion') }}" class="font-semibold text-[#6c4b11] underline decoration-[#c6a566] underline-offset-4">account and data deletion request page</a>. You can also email us to request access to or correction of your information.</p>
                 </section>
 
                 <section id="security" class="scroll-mt-6 rounded-[22px] border border-[#dfcfad] bg-[#FBF6EA] p-5 sm:p-7">

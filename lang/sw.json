@@ -944,5 +944,22 @@
     "Privacy Policy | ReadArena": "Sera ya faragha | ReadArena",
     "Main navigation": "Urambazaji mkuu",
     "Privacy policy contents": "Yaliyomo kwenye sera ya faragha",
-    "Learn how we handle account information in our": "Jifunze jinsi tunavyoshughulikia taarifa za akaunti kwenye"
+    "Learn how we handle account information in our": "Jifunze jinsi tunavyoshughulikia taarifa za akaunti kwenye",
+    "Request account deletion": "Omba kufutwa kwa akaunti",
+    "Account and Data Deletion | ReadArena": "Ufutaji wa Akaunti na Data | ReadArena",
+    "Account and data deletion request page": "ukurasa wa kuomba kufutwa kwa akaunti na data",
+    "If you no longer have the app installed, use our": "Ikiwa huna tena programu iliyosakinishwa, tumia",
+    ". You can also email us to request access to or correction of your information.": ". Unaweza pia kututumia barua pepe kuomba kufikia au kusahihisha taarifa zako.",
+    "ReadArena account controls": "Udhibiti wa akaunti ya ReadArena",
+    "Request account and data deletion": "Omba kufutwa kwa akaunti na data",
+    "You can request deletion of your ReadArena account and its associated personal data here, even if you have uninstalled the Android app. You can also request deletion of specific personal data while keeping your account.": "Unaweza kuomba kufutwa kwa akaunti yako ya ReadArena na data binafsi inayohusiana nayo hapa, hata kama umeondoa programu ya Android. Unaweza pia kuomba kufutwa kwa data binafsi maalum huku ukiendelea kutumia akaunti yako.",
+    "Request deletion of specific data": "Omba kufutwa kwa data maalum",
+    "For either request, send the email from the address linked to your ReadArena account and include that account email. For a data-only request, describe which data you want removed; your account will remain active. You may include your username if you have one. Do not send your password. We may verify your identity before completing a request.": "Kwa ombi lolote kati ya hayo, tuma barua pepe kutoka kwenye anwani iliyounganishwa na akaunti yako ya ReadArena na ujumuishe anwani hiyo. Kwa ombi la kufuta data pekee, eleza data unayotaka iondolewe; akaunti yako itaendelea kutumika. Unaweza kuongeza jina lako la mtumiaji ikiwa unalo. Usitume nenosiri lako. Tunaweza kuthibitisha utambulisho wako kabla ya kukamilisha ombi.",
+    "What will be deleted": "Kitakachofutwa",
+    "When a verified request is completed, we delete your account and associated personal records, such as profile details and photo, reading activity, quiz participation and scores, duels, applications, submitted ideas and attachments, notifications, and app access tokens.": "Ombi lililothibitishwa likikamilishwa, tunafuta akaunti yako na rekodi binafsi zinazohusiana nayo, kama maelezo na picha ya wasifu, shughuli za usomaji, ushiriki na alama za quiz, duwa, maombi, mawazo yaliyowasilishwa na viambatisho, arifa na tokeni za ufikiaji wa programu.",
+    "Limited retention": "Uhifadhi wa taarifa chache",
+    "Information required for legal obligations, security, or dispute resolution may be retained where necessary. Backup copies and technical logs may remain until their normal retention period ends.": "Taarifa zinazohitajika kwa wajibu wa kisheria, usalama au utatuzi wa migogoro zinaweza kuhifadhiwa inapohitajika. Nakala rudufu na rekodi za kiufundi zinaweza kubaki hadi muda wake wa kawaida wa kuhifadhi utakapoisha.",
+    "If you are signed in, you can delete your account directly from your profile settings.": "Ikiwa umeingia, unaweza kufuta akaunti yako moja kwa moja kwenye mipangilio ya wasifu wako.",
+    "Go to profile settings": "Nenda kwenye mipangilio ya wasifu",
+    "Read our Privacy Policy": "Soma sera yetu ya faragha"
 }
