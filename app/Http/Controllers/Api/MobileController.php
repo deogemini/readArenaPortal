@@ -17,6 +17,7 @@ use App\Models\ReaderShelf;
 use App\Models\Recommendation;
 use App\Models\ReaderNotification;
 use App\Models\ReaderNotificationPreference;
+use App\Models\PushDeviceToken;
 use App\Models\ShowApplication;
 use App\Models\ShowRsvp;
 use App\Models\User;
@@ -117,6 +118,39 @@ class MobileController extends Controller
         return response()->json(['data' => $this->userData($request->user())]);
     }
 
+    public function language(Request $request)
+    {
+        return response()->json(['data' => [
+            'locale' => $request->user()->locale ?: 'en',
+            'supported_locales' => [
+                ['code' => 'en', 'name' => 'English'],
+                ['code' => 'sw', 'name' => 'Kiswahili'],
+            ],
+        ]]);
+    }
+
+    public function updateLanguage(Request $request)
+    {
+        $validated = $request->validate([
+            'locale' => ['required', 'string', Rule::in(['en', 'sw'])],
+        ]);
+
+        $user = $request->user();
+        $user->forceFill(['locale' => $validated['locale']])->save();
+        app()->setLocale($validated['locale']);
+
+        return response()->json([
+            'message' => __('Language preference updated successfully.'),
+            'data' => [
+                'locale' => $user->locale,
+                'supported_locales' => [
+                    ['code' => 'en', 'name' => 'English'],
+                    ['code' => 'sw', 'name' => 'Kiswahili'],
+                ],
+            ],
+        ]);
+    }
+
     public function notifications(Request $request)
     {
         $filters = $request->validate([
@@ -207,13 +241,59 @@ class MobileController extends Controller
         ]);
     }
 
+    public function registerPushToken(Request $request)
+    {
+        $payload = $request->validate([
+            'token' => ['required', 'string', 'max:512'],
+            'platform' => ['nullable', Rule::in(['android', 'ios'])],
+            'device_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $device = PushDeviceToken::query()->updateOrCreate(
+            ['token' => $payload['token']],
+            [
+                'user_id' => $request->user()->id,
+                'platform' => $payload['platform'] ?? 'android',
+                'device_name' => $payload['device_name'] ?? null,
+                'last_used_at' => now(),
+            ],
+        );
+
+        return response()->json([
+            'message' => 'Push token registered successfully.',
+            'data' => ['platform' => $device->platform, 'device_name' => $device->device_name],
+        ], 201);
+    }
+
+    public function unregisterPushToken(Request $request)
+    {
+        $payload = $request->validate(['token' => ['required', 'string', 'max:512']]);
+        $deleted = PushDeviceToken::query()
+            ->where('user_id', $request->user()->id)
+            ->where('token', $payload['token'])
+            ->delete();
+
+        return response()->json([
+            'message' => $deleted ? 'Push token removed successfully.' : 'Push token was not registered to this account.',
+        ], $deleted ? 200 : 404);
+    }
+
     public function updateProfile(Request $request)
     {
         $user = $request->user();
+        $username = $request->input('username');
+        if (is_string($username)) {
+            $request->merge(['username' => mb_strtolower(trim($username))]);
+        }
+
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'username' => $user->isReader()
+                ? ['sometimes', 'nullable', 'string', 'min:3', 'max:24', 'regex:/\A[a-z0-9_]+\z/', Rule::unique(User::class, 'username')->ignore($user->id)]
+                : ['prohibited'],
             'email' => ['sometimes', 'required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
             'phone_number' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'sw'])],
         ]);
 
         $user->fill($validated);
@@ -223,6 +303,9 @@ class MobileController extends Controller
         }
 
         $user->save();
+        if (isset($validated['locale'])) {
+            app()->setLocale($validated['locale']);
+        }
 
         return response()->json([
             'message' => 'Profile updated successfully.',
@@ -246,17 +329,24 @@ class MobileController extends Controller
         ]);
 
         $user = $request->user();
+        $previousPath = $user->profile_photo_path;
+        $path = $request->file('profile_photo')->store('profile-photos', 'public');
+        abort_unless($path, 500, 'Unable to save the profile photo.');
 
-        if ($user->profile_photo_path) {
-            Storage::disk('public')->delete($user->profile_photo_path);
+        try {
+            $user->update(['profile_photo_path' => $path]);
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($path);
+            throw $exception;
         }
 
-        $path = $request->file('profile_photo')->store('profile-photos', 'public');
-        $user->update(['profile_photo_path' => $path]);
+        if ($previousPath && $previousPath !== $path) {
+            Storage::disk('public')->delete($previousPath);
+        }
 
         return response()->json([
             'message' => 'Profile photo uploaded successfully.',
-            'data' => ['profile_photo_url' => Storage::disk('public')->url($path)],
+            'data' => $this->userData($user->fresh()),
         ]);
     }
 
@@ -598,7 +688,7 @@ class MobileController extends Controller
         return response()->json(['data' => $goals]);
     }
 
-    public function storeGoal(Request $request)
+    public function storeGoal(Request $request, ReaderShelfService $shelves)
     {
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -627,6 +717,8 @@ class MobileController extends Controller
             'end_date' => $payload['end_date'],
             'status' => 'active',
         ]);
+        $shelves->refreshBookGoals($request->user());
+        $goal->refresh();
 
         return response()->json([
             'message' => 'Reading goal created successfully.',
@@ -642,7 +734,7 @@ class MobileController extends Controller
         return response()->json(['message' => 'Reading goal deleted successfully.']);
     }
 
-    public function updateGoal(Request $request, ReadingGoal $goal)
+    public function updateGoal(Request $request, ReadingGoal $goal, ReaderShelfService $shelves)
     {
         abort_unless((int) $goal->user_id === (int) $request->user()->id, 404);
         $payload = $request->validate([
@@ -668,6 +760,7 @@ class MobileController extends Controller
             'end_date' => $payload['end_date'],
             'status' => $goal->current_value >= $payload['target_value'] ? 'achieved' : 'active',
         ]);
+        $shelves->refreshBookGoals($request->user());
 
         return response()->json([
             'message' => 'Reading goal updated successfully.',
@@ -848,11 +941,26 @@ class MobileController extends Controller
         return response()->json(['data' => $shows]);
     }
 
+    public function showApplicationOptions(Request $request, LiveShow $show, ShowParticipationService $participation)
+    {
+        abort_unless($request->user()->isReader(), 403);
+
+        $books = $participation->applicationOptions($request->user(), $show)
+            ->map(fn (Book $book) => [
+                'id' => $book->id,
+                'title' => $book->title,
+                'slug' => $book->slug,
+                'cover_image_url' => $this->storageUrl($book->cover_image),
+            ]);
+
+        return response()->json(['data' => ['show_id' => $show->id, 'eligible_books' => $books]]);
+    }
+
     public function showRsvp(Request $request, LiveShow $show, ShowParticipationService $participation, ReaderNotificationService $notifications)
     {
         $rsvp = $participation->rsvp($request->user(), $show);
         if ($rsvp->wasRecentlyCreated) {
-            $notifications->send($request->user(), 'show_rsvp', 'Show RSVP confirmed', 'You are registered for '.$show->title.'.', ['show_id' => $show->id]);
+            $notifications->sendTranslated($request->user(), 'show_rsvp', 'Show RSVP confirmed', 'You are registered for :show.', ['show' => $show->title], ['show_id' => $show->id]);
         }
 
         return response()->json([
@@ -872,7 +980,7 @@ class MobileController extends Controller
     {
         $applications = ShowApplication::query()
             ->where('user_id', $request->user()->id)
-            ->with('show:id,title,start_at,status,book_id')
+            ->with(['show:id,title,start_at,status,book_id', 'book:id,title,slug'])
             ->latest()
             ->get()
             ->map(fn (ShowApplication $application) => $this->showApplicationData($application));
@@ -882,11 +990,15 @@ class MobileController extends Controller
 
     public function applyToShow(Request $request, LiveShow $show, ShowParticipationService $participation)
     {
-        $payload = $request->validate(['motivation' => ['required', 'string', 'min:20', 'max:2000']]);
-        $application = $participation->apply($request->user(), $show, $payload['motivation']);
+        abort_unless($request->user()->isReader(), 403);
+        $payload = $request->validate([
+            'book_id' => ['required', 'integer', 'exists:books,id'],
+            'motivation' => ['required', 'string', 'min:20', 'max:2000'],
+        ]);
+        $application = $participation->apply($request->user(), $show, (int) $payload['book_id'], $payload['motivation']);
 
         return response()->json([
-            'message' => 'Guest application submitted successfully.',
+            'message' => __('Live show application submitted successfully.'),
             'data' => $this->showApplicationData($application),
         ], 201);
     }
@@ -896,19 +1008,40 @@ class MobileController extends Controller
         $updated = $participation->withdraw($request->user(), $application);
 
         return response()->json([
-            'message' => 'Guest application withdrawn successfully.',
+            'message' => __('Live show application withdrawn successfully.'),
             'data' => $this->showApplicationData($updated),
         ]);
     }
 
     public function leaderboard(Request $request, LeaderboardService $leaderboard)
     {
-        $payload = $request->validate(['period' => ['nullable', Rule::in(LeaderboardService::PERIODS)]]);
+        $payload = $request->validate([
+            'period' => ['nullable', Rule::in(LeaderboardService::PERIODS)],
+            'type' => ['nullable', Rule::in(['reading', 'quizzes'])],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
         $period = $payload['period'] ?? 'weekly';
+        $type = $payload['type'] ?? 'quizzes';
+        $readingRankings = $type === 'reading'
+            ? $leaderboard->readingRankings($period, (int) ($payload['per_page'] ?? 20))
+            : null;
+        $rankings = $readingRankings?->getCollection() ?? $leaderboard->rankings($period);
 
         return response()->json([
-            'data' => $leaderboard->rankings($period),
-            'meta' => ['period' => $period, 'scoring' => 'sum of each reader’s best passing score per published quiz'],
+            'data' => $rankings,
+            'meta' => array_merge([
+                'type' => $type,
+                'period' => $period,
+                'scoring' => $type === 'reading'
+                    ? 'distinct books marked completed during the period; ties use book-goal completion rate, then achieved book-goal count'
+                    : 'sum of each reader’s best passing score per published quiz',
+            ], $readingRankings ? [
+                'current_page' => $readingRankings->currentPage(),
+                'last_page' => $readingRankings->lastPage(),
+                'per_page' => $readingRankings->perPage(),
+                'total' => $readingRankings->total(),
+            ] : []),
         ]);
     }
 
@@ -952,7 +1085,7 @@ class MobileController extends Controller
         ]);
         $duel = $duelService->challenge($request->user(), (int) $payload['opponent_id'], (int) $payload['book_id']);
         $duel->loadMissing(['book:id,title', 'opponent']);
-        $notifications->send($duel->opponent, 'duel_invitation', 'New duel invitation', $request->user()->name.' challenged you to a duel for '.$duel->book?->title.'.', ['duel_id' => $duel->id, 'book_id' => $duel->book_id]);
+        $notifications->sendTranslated($duel->opponent, 'duel_invitation', 'New duel invitation', ':actor challenged you to a duel for :book.', ['actor' => $request->user()->name, 'book' => $duel->book?->title], ['duel_id' => $duel->id, 'book_id' => $duel->book_id]);
 
         return response()->json([
             'message' => 'Duel invitation sent successfully.',
@@ -964,7 +1097,7 @@ class MobileController extends Controller
     {
         $payload = $request->validate(['action' => ['required', Rule::in(['accept', 'reject'])]]);
         $updated = $duelService->respond($request->user(), $duel, $payload['action']);
-        $notifications->send($updated->challenger, 'duel_response', 'Duel invitation '.$updated->status, $request->user()->name.' '.$updated->status.' your duel invitation.', ['duel_id' => $updated->id, 'status' => $updated->status]);
+        $notifications->sendTranslated($updated->challenger, 'duel_response', 'Duel invitation :status', ':actor :status your duel invitation.', ['actor' => $request->user()->name, 'status' => __($updated->status, [], $updated->challenger->locale ?: 'en')], ['duel_id' => $updated->id, 'status' => $updated->status]);
 
         return response()->json(['message' => 'Duel invitation '.$payload['action'].'ed.', 'data' => $this->duelData($updated)]);
     }
@@ -1046,11 +1179,12 @@ class MobileController extends Controller
         });
 
         if ($result['review_status'] === 'graded') {
-            $notifications->send(
+            $notifications->sendTranslated(
                 $request->user(),
                 $result['passed'] ? 'quiz_passed' : 'quiz_failed',
                 $result['passed'] ? 'Quiz passed' : 'Quiz complete',
-                'You scored '.$result['score'].'% on '.$quiz->title.'.',
+                'You scored :score% on :quiz.',
+                ['score' => $result['score'], 'quiz' => $quiz->title],
                 ['quiz_id' => $quiz->id, 'book_id' => $quiz->book_id, 'attempt_id' => $result['attempt_id'], 'score' => $result['score'], 'passed' => $result['passed']],
             );
         }
@@ -1068,9 +1202,11 @@ class MobileController extends Controller
         return [
             'id' => $user->id,
             'name' => $user->name,
+            'username' => $user->username,
             'email' => $user->email,
             'phone_number' => $user->phone_number,
             'role' => $user->role,
+            'locale' => $user->locale ?: 'en',
             'profile_photo_url' => $this->storageUrl($user->profile_photo_path),
         ];
     }
@@ -1258,7 +1394,9 @@ class MobileController extends Controller
     private function showApplicationData(ShowApplication $application): array
     {
         if (! $application->relationLoaded('show')) {
-            $application->load('show:id,title,start_at,status,book_id');
+            $application->load('show:id,title,start_at,status,book_id', 'book:id,title,slug');
+        } elseif (! $application->relationLoaded('book')) {
+            $application->load('book:id,title,slug');
         }
 
         return [
@@ -1268,6 +1406,11 @@ class MobileController extends Controller
                 'title' => $application->show->title,
                 'start_at' => $application->show->start_at,
                 'status' => $application->show->status,
+            ] : null,
+            'book' => $application->book ? [
+                'id' => $application->book->id,
+                'title' => $application->book->title,
+                'slug' => $application->book->slug,
             ] : null,
             'motivation' => $application->motivation,
             'quiz_score' => (int) $application->quiz_score,

@@ -7,19 +7,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'phone_number', 'password', 'email_verified_at', 'role', 'profile_photo_path'])]
+#[Fillable(['name', 'username', 'email', 'phone_number', 'password', 'email_verified_at', 'role', 'profile_photo_path', 'locale'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements HasLocalePreference
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'phone_number', 'password', 'email_verified_at', 'role', 'profile_photo_path'];
+    protected $fillable = ['name', 'username', 'email', 'phone_number', 'password', 'email_verified_at', 'role', 'profile_photo_path', 'locale'];
 
     protected $hidden = ['password', 'remember_token'];
+
+    public function preferredLocale(): string
+    {
+        return in_array($this->locale, ['en', 'sw'], true) ? $this->locale : 'en';
+    }
 
     protected function casts(): array
     {
@@ -63,6 +69,11 @@ class User extends Authenticatable
     public function bookReviews(): HasMany
     {
         return $this->hasMany(BookReview::class);
+    }
+
+    public function readerIdeas(): HasMany
+    {
+        return $this->hasMany(ReaderIdea::class);
     }
 
     public function challengerDuels(): HasMany

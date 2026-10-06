@@ -32,9 +32,18 @@
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
         </div>
 
+        @if ($user->isReader())
+            <div>
+                <x-input-label for="username" :value="__('Username')" />
+                <x-text-input id="username" name="username" type="text" class="mt-1 block w-full" :value="old('username', $user->username)" placeholder="{{ __('Optional username') }}" autocomplete="nickname" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" />
+                <p class="mt-1 text-sm text-gray-600">{{ __('Optional. Use 3–24 letters, numbers, or underscores.') }}</p>
+                <x-input-error class="mt-2" :messages="$errors->get('username')" />
+            </div>
+        @endif
+
         <div>
             <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="username" />
+            <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email', $user->email)" required autocomplete="email" />
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
 
             @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
@@ -54,6 +63,15 @@
                     @endif
                 </div>
             @endif
+        </div>
+
+        <div>
+            <x-input-label for="locale" :value="__('Language')" />
+            <select id="locale" name="locale" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <option value="en" @selected(old('locale', $user->locale ?? 'en') === 'en')>English</option>
+                <option value="sw" @selected(old('locale', $user->locale ?? 'en') === 'sw')>Kiswahili</option>
+            </select>
+            <x-input-error class="mt-2" :messages="$errors->get('locale')" />
         </div>
 
         <div class="flex items-center gap-4">

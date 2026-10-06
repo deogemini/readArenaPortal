@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Review Moderation | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#1B0D05] text-[#F4EBD8]">
+@include('components.language-switcher')
 <main class="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
     <header class="flex flex-wrap items-center justify-between gap-4"><div><p class="text-xs uppercase tracking-[0.3em] text-[#D8A83E]">Community safety</p><h1 class="mt-2 font-serif text-3xl">Book reviews</h1></div><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Admin dashboard</a></header>
     @if (session('status'))<div class="mt-5 rounded-xl border border-[#3d261b] bg-[#2B170D] px-4 py-3 text-sm">{{ session('status') }}</div>@endif

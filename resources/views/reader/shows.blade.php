@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -44,23 +45,35 @@
                                 @endif
                             </div>
                         </div>
-                        @if ($show->book)
-                            <div class="mt-5 border-t border-[#d8c9ad] pt-4">
+                        <div class="mt-5 border-t border-[#d8c9ad] pt-4">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <h4 class="font-semibold text-[#1B0D05]">Apply to join as a guest</h4>
+                                    <h4 class="font-semibold text-[#1B0D05]">Apply to join this live show competition</h4>
                                     @if ($application)<span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs uppercase">{{ $application->status }} · quiz score {{ $application->quiz_score }}%</span>@endif
                                 </div>
+                                @if ($application)
+                                    <p class="mt-2 text-sm text-[#786A5D]">Selected book: <span class="font-semibold text-[#1B0D05]">{{ $application->book?->title ?? $show->book?->title ?? 'Book unavailable' }}</span></p>
+                                @endif
                                 @if ($application && $application->status === 'pending')
                                     <p class="mt-2 text-sm text-[#786A5D]">Your application is waiting for review.</p>
                                     <form action="{{ route('reader.show-applications.destroy', $application) }}" method="POST" class="mt-3">@csrf @method('DELETE')<button class="rounded-full border border-[#c17b6f] px-4 py-2 text-sm text-[#7a2e22]">Withdraw application</button></form>
                                 @elseif ($application && $application->status === 'approved')
-                                    <p class="mt-2 text-sm text-[#2F7D4A]">Your guest application has been approved.</p>
+                                    <p class="mt-2 text-sm text-[#2F7D4A]">Your live show competition application has been approved.</p>
+                                @elseif ($eligibleBooks->isEmpty())
+                                    <p class="mt-3 text-sm text-[#786A5D]">Pass a published quiz for a book first. Your eligible books will appear here so you can apply.</p>
                                 @else
-                                    <form action="{{ route('reader.shows.applications.store', $show) }}" method="POST" class="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">@csrf<textarea name="motivation" rows="3" minlength="20" maxlength="2000" required placeholder="Why would you like to join this discussion?" class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-3 text-sm"></textarea><button class="self-end rounded-full border border-[#d8c9ad] px-4 py-2 text-sm font-semibold">Submit application</button></form>
-                                    <p class="mt-2 text-xs text-[#786A5D]">Guest applications require a passing quiz for the related book.</p>
+                                    <form action="{{ route('reader.shows.applications.store', $show) }}" method="POST" class="mt-3 grid gap-3">@csrf
+                                        <label class="grid gap-1 text-sm font-medium text-[#1B0D05]">Select a book
+                                            <select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-3 text-sm">
+                                                <option value="">Choose a book</option>
+                                                @foreach ($eligibleBooks as $book)<option value="{{ $book->id }}" @selected((string) old('book_id', $application?->book_id ?? '') === (string) $book->id)>{{ $book->title }}</option>@endforeach
+                                            </select>
+                                        </label>
+                                        <textarea name="motivation" rows="3" minlength="20" maxlength="2000" required placeholder="Why would you like to join this discussion?" class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-3 text-sm">{{ old('motivation') }}</textarea>
+                                        <p class="text-xs text-[#786A5D]">You can apply with a book after passing one of its published quizzes.</p>
+                                        <button class="justify-self-start rounded-full border border-[#d8c9ad] px-5 py-2 text-sm font-semibold">Submit application</button>
+                                    </form>
                                 @endif
-                            </div>
-                        @endif
+                        </div>
                     </article>
                 @empty
                     <p class="rounded-[18px] border border-dashed border-[#d8c9ad] p-5 text-sm text-[#5e544d]">No future shows are scheduled yet.</p>

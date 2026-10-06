@@ -19,9 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'reader' => \App\Http\Middleware\EnsureReader::class,
             'author' => \App\Http\Middleware\EnsureAuthor::class,
             'track.user.activity' => \App\Http\Middleware\TrackUserActivity::class,
+            'set.locale' => \App\Http\Middleware\SetLocale::class,
         ]);
+        $middleware->appendToGroup('web', \App\Http\Middleware\SetLocale::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\SetLocale::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['smtp_password', 'firebase_service_account_json', 'client_secret']);
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -29,7 +30,7 @@
             <p class="mt-2 text-sm leading-6 text-[#786A5D]">Keep a private draft or publish after passing a quiz for the book.</p>
             <form action="{{ route('reader.recommendations.store') }}" method="POST" class="mt-5 grid gap-4">
                 @csrf
-                <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2"><option value="">Choose a published book</option>@foreach ($books as $book)<option value="{{ $book->id }}" @selected(old('book_id') == $book->id)>{{ $book->title }}</option>@endforeach</select></label>
+                <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2"><option value="">Choose a published book</option>@foreach ($books as $book)<option data-no-translate value="{{ $book->id }}" @selected(old('book_id') == $book->id)>{{ $book->title }}</option>@endforeach</select></label>
                 <label class="grid gap-1 text-sm">Your recommendation<textarea name="message" rows="5" maxlength="5000" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2">{{ old('message') }}</textarea></label>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <label class="grid gap-1 text-sm">Rating<select name="rating" class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2">@for ($rating = 5; $rating >= 1; $rating--)<option value="{{ $rating }}">{{ $rating }} / 5</option>@endfor</select></label>
@@ -45,10 +46,10 @@
             <div class="mt-5 space-y-4">
                 @forelse ($recommendations as $recommendation)
                     <details class="rounded-[20px] border border-[#d8c9ad] bg-[#F4EBD8] p-5">
-                        <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3"><span><span class="block font-semibold text-[#1B0D05]">{{ $recommendation->book?->title }}</span><span class="mt-1 block text-xs text-[#786A5D]">{{ $recommendation->rating }}/5 · {{ ucfirst($recommendation->status) }} · {{ ucfirst($recommendation->visibility) }}</span><span class="mt-2 block text-sm text-[#5e544d]">{{ $recommendation->message }}</span></span><span class="text-sm text-[#B98A2C]">Edit</span></summary>
+                        <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3"><span><span class="block font-semibold text-[#1B0D05]" data-no-translate>{{ $recommendation->book?->title }}</span><span class="mt-1 block text-xs text-[#786A5D]">{{ $recommendation->rating }}/5 · {{ ucfirst($recommendation->status) }} · {{ ucfirst($recommendation->visibility) }}</span><span class="mt-2 block text-sm text-[#5e544d]" data-no-translate>{{ $recommendation->message }}</span></span><span class="text-sm text-[#B98A2C]">Edit</span></summary>
                         <form action="{{ route('reader.recommendations.update', $recommendation) }}" method="POST" class="mt-5 grid gap-3">
                             @csrf @method('PATCH')
-                            <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">@foreach ($books as $book)<option value="{{ $book->id }}" @selected($recommendation->book_id === $book->id)>{{ $book->title }}</option>@endforeach</select></label>
+                            <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">@foreach ($books as $book)<option data-no-translate value="{{ $book->id }}" @selected($recommendation->book_id === $book->id)>{{ $book->title }}</option>@endforeach</select></label>
                             <label class="grid gap-1 text-sm">Recommendation<textarea name="message" rows="4" maxlength="5000" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">{{ $recommendation->message }}</textarea></label>
                             <div class="grid gap-3 sm:grid-cols-3">
                                 <label class="grid gap-1 text-sm">Rating<select name="rating" class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">@for ($rating = 5; $rating >= 1; $rating--)<option value="{{ $rating }}" @selected($recommendation->rating === $rating)>{{ $rating }} / 5</option>@endfor</select></label>

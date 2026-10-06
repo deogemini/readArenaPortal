@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
@@ -50,9 +51,9 @@
                 <img src="{{ $book->cover_image ?? 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80' }}" alt="{{ $book->title }}" class="h-80 w-full rounded-[20px] object-cover">
                 <div>
                     <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">{{ $book->genres->first()?->name ?? 'Classic' }}</p>
-                    <h1 class="mt-2 font-serif text-3xl text-[#1B0D05]">{{ $book->title }}</h1>
-                    <p class="mt-2 text-sm text-[#786A5D]">by {{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
-                    <p class="mt-6 text-base leading-8 text-[#5e544d]">{{ $book->description }}</p>
+                    <h1 class="mt-2 font-serif text-3xl text-[#1B0D05]" data-no-translate>{{ $book->title }}</h1>
+                    <p class="mt-2 text-sm text-[#786A5D]">by <span data-no-translate>{{ $book->authors->first()?->name ?? 'Unknown author' }}</span></p>
+                    <p class="mt-6 text-base leading-8 text-[#5e544d]" data-no-translate>{{ $book->description }}</p>
                     <div class="mt-6 flex flex-wrap gap-3 text-sm">
                         <span class="rounded-full border border-[#d8c9ad] px-3 py-1">{{ $book->publication_year }}</span>
                         <span class="rounded-full border border-[#d8c9ad] px-3 py-1">{{ $book->page_count }} pages</span>
@@ -198,7 +199,7 @@
                 <article class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h3 class="font-serif text-2xl text-[#1B0D05]">{{ $quiz->title }}</h3>
+                            <h3 class="font-serif text-2xl text-[#1B0D05]" data-no-translate>{{ $quiz->title }}</h3>
                             <p class="mt-1 text-sm text-[#786A5D]">{{ $quiz->instructions ?: 'Answer the questions and earn points.' }}</p>
                         </div>
                         <div class="text-sm text-[#5e544d]">
@@ -216,7 +217,7 @@
                         @csrf
                         @foreach($quiz->questions->sortBy('sort_order') as $question)
                             <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
-                                <p class="font-semibold text-[#1B0D05]">{{ $question->prompt }}</p>
+                                <p class="font-semibold text-[#1B0D05]" data-no-translate>{{ $question->prompt }}</p>
                                 <p class="mt-1 text-xs text-[#786A5D]">Points: {{ $question->points }}</p>
                                 @if(in_array($question->question_type, ['one_word', 'short_answer', 'written_response'], true))
                                     @if($question->question_type === 'one_word')
@@ -238,7 +239,7 @@
                                                 @else
                                                     <input type="checkbox" name="answers[{{ $question->id }}][]" value="{{ $answer->id }}">
                                                 @endif
-                                                <span>{{ $answer->body }}</span>
+                                                <span data-no-translate>{{ $answer->body }}</span>
                                             </label>
                                         @endforeach
                                     </div>

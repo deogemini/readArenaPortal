@@ -43,6 +43,7 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->string('role')->toString() ?: 'reader',
+            'locale' => in_array($request->session()->get('locale'), ['en', 'sw'], true) ? $request->session()->get('locale') : 'en',
         ]);
 
         event(new Registered($user));

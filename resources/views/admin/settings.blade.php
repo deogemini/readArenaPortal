@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#1B0D05] text-[#F4EBD8]">
+@include('components.language-switcher')
 <div class="min-h-screen">
     <aside class="fixed inset-y-0 left-0 hidden w-72 border-r border-[#3d261b] bg-[#130804] p-6 lg:block">
         <div class="flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
@@ -55,15 +56,56 @@
                 @endif
 
                 <section class="rounded-[18px] border border-[#3d261b] bg-[#2B170D] p-6">
+                    <h2 class="font-serif text-2xl">Notification Delivery</h2>
+                    <p class="mt-2 text-sm text-[#d8c9ad]">Configure outbound email and Firebase Cloud Messaging. Credentials are encrypted in the database and secret fields stay blank after saving.</p>
+
+                    <form action="{{ route('admin.settings.notification-channels.update') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-2">
+                        @csrf
+                        <label class="md:col-span-2 flex items-center gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-3 text-sm">
+                            <input type="checkbox" name="email_enabled" value="1" @checked(old('email_enabled', $notificationChannelSetting->email_enabled ?? false))>
+                            Enable email notifications
+                        </label>
+                        <input name="smtp_host" value="{{ old('smtp_host', $notificationChannelSetting->smtp_host ?? 'mail.eportsolutions.co.tz') }}" placeholder="SMTP host" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        <input type="number" name="smtp_port" value="{{ old('smtp_port', $notificationChannelSetting->smtp_port ?? 587) }}" placeholder="SMTP port" min="1" max="65535" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        <input name="smtp_username" value="{{ old('smtp_username', $notificationChannelSetting->smtp_username ?? 'info@eportsolutions.co.tz') }}" placeholder="SMTP username" autocomplete="off" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        <input type="password" name="smtp_password" placeholder="{{ $notificationChannelSetting?->smtp_password ? 'Saved; leave blank to keep current password' : 'SMTP password' }}" autocomplete="new-password" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        <select name="smtp_encryption" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                            @foreach(['tls' => 'TLS / STARTTLS', 'ssl' => 'SSL', 'none' => 'No encryption'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('smtp_encryption', $notificationChannelSetting->smtp_encryption ?? 'tls') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <input type="email" name="mail_from_address" value="{{ old('mail_from_address', $notificationChannelSetting->mail_from_address ?? 'info@eportsolutions.co.tz') }}" placeholder="From email address" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        <input name="mail_from_name" value="{{ old('mail_from_name', $notificationChannelSetting->mail_from_name ?? 'READ ARENA') }}" placeholder="From name" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        @if($notificationChannelSetting?->smtp_password)
+                            <label class="md:col-span-2 flex items-center gap-2 text-sm text-[#d8c9ad]"><input type="checkbox" name="clear_smtp_password" value="1"> Clear saved SMTP password</label>
+                        @endif
+
+                        <label class="md:col-span-2 mt-3 flex items-center gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-3 text-sm">
+                            <input type="checkbox" name="push_enabled" value="1" @checked(old('push_enabled', $notificationChannelSetting->push_enabled ?? false))>
+                            Enable push notifications
+                        </label>
+                        <input name="firebase_project_id" value="{{ old('firebase_project_id', $notificationChannelSetting->firebase_project_id ?? '') }}" placeholder="Firebase project ID" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
+                        <p class="self-center text-sm text-[#d8c9ad]">{{ $notificationChannelSetting?->firebase_service_account_json ? 'Firebase service account is saved.' : 'No Firebase service account saved. Paste the project service-account JSON below.' }}</p>
+                        <textarea name="firebase_service_account_json" rows="5" placeholder="Paste Firebase service-account JSON{{ $notificationChannelSetting?->firebase_service_account_json ? ' (leave blank to keep saved credentials)' : '' }}" autocomplete="off" class="md:col-span-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-3 font-mono text-xs"></textarea>
+                        @if($notificationChannelSetting?->firebase_service_account_json)
+                            <label class="md:col-span-2 flex items-center gap-2 text-sm text-[#d8c9ad]"><input type="checkbox" name="clear_firebase_credentials" value="1"> Remove saved Firebase service-account credentials</label>
+                        @endif
+                        <div class="md:col-span-2">
+                            <button class="rounded-full bg-[#D8A83E] px-6 py-2 text-sm font-semibold text-[#1B0D05]">Save notification settings</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="rounded-[18px] border border-[#3d261b] bg-[#2B170D] p-6">
                     <h2 class="font-serif text-2xl">SMS Gateway</h2>
-                    <p class="mt-2 text-sm text-[#d8c9ad]">Configure Flex SMS credentials and enable/disable gateway alerts.</p>
+                    <p class="mt-2 text-sm text-[#d8c9ad]">Configure Flex SMS credentials. The client secret is encrypted at rest and masked after saving.</p>
 
                     <form action="{{ route('admin.settings.sms-gateway.update') }}" method="POST" class="mt-5 grid gap-4 md:grid-cols-2">
                         @csrf
                         <input name="base_url" value="{{ old('base_url', $smsGatewaySetting->base_url ?? config('services.flex_sms.base_url')) }}" placeholder="Base URL" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                         <input name="sender_id" value="{{ old('sender_id', $smsGatewaySetting->sender_id ?? config('services.flex_sms.sender_id')) }}" placeholder="Sender ID" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                         <input name="client_id" value="{{ old('client_id', $smsGatewaySetting->client_id ?? config('services.flex_sms.client_id')) }}" placeholder="Client ID" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
-                        <input name="client_secret" value="{{ old('client_secret', $smsGatewaySetting->client_secret ?? config('services.flex_sms.client_secret')) }}" placeholder="Client Secret" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
+                        <input type="password" name="client_secret" placeholder="{{ $smsGatewaySetting?->client_secret ? 'Saved; leave blank to keep current secret' : 'Client Secret' }}" autocomplete="new-password" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2">
                         <label class="md:col-span-2 flex items-center gap-2 rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2 text-sm">
                             <input type="checkbox" name="is_enabled" value="1" @checked(old('is_enabled', $smsGatewaySetting->is_enabled ?? false))>
                             Enable SMS gateway

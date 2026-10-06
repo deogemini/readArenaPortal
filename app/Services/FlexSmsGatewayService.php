@@ -11,10 +11,14 @@ class FlexSmsGatewayService
     {
         $settings = SmsGatewaySetting::query()->latest('id')->first();
 
-        $baseUrl = rtrim((string) ($settings?->base_url ?: config('services.flex_sms.base_url')), '/');
-        $clientId = (string) ($settings?->client_id ?: config('services.flex_sms.client_id'));
-        $clientSecret = (string) ($settings?->client_secret ?: config('services.flex_sms.client_secret'));
-        $senderId = (string) ($settings?->sender_id ?: config('services.flex_sms.sender_id', 'FLEX'));
+        if (! $settings?->is_enabled || blank($settings->base_url) || blank($settings->client_id) || blank($settings->client_secret)) {
+            return ['ok' => false, 'status' => 0, 'body' => ['message' => 'SMS gateway is disabled or incomplete.']];
+        }
+
+        $baseUrl = rtrim((string) $settings->base_url, '/');
+        $clientId = (string) $settings->client_id;
+        $clientSecret = (string) $settings->client_secret;
+        $senderId = (string) $settings->sender_id;
 
         $payload = [
             'senderId' => $senderId,

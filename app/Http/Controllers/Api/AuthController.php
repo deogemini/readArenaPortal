@@ -22,6 +22,7 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', 'min:8'],
             'role' => ['nullable', 'string', 'in:reader,author'],
             'device_name' => ['nullable', 'string', 'max:80'],
+            'locale' => ['nullable', 'string', Rule::in(['en', 'sw'])],
         ]);
 
         $user = User::create([
@@ -29,6 +30,7 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'] ?? 'reader',
+            'locale' => $validated['locale'] ?? (in_array($request->header('X-Locale'), ['en', 'sw'], true) ? $request->header('X-Locale') : 'en'),
             'email_verified_at' => now(),
         ]);
 
@@ -62,6 +64,7 @@ class AuthController extends Controller
             'access_token' => ['required', 'string'],
             'role' => ['nullable', 'string', 'in:reader,author'],
             'device_name' => ['nullable', 'string', 'max:80'],
+            'locale' => ['nullable', 'string', Rule::in(['en', 'sw'])],
         ]);
 
         try {
@@ -87,6 +90,7 @@ class AuthController extends Controller
                 'password' => Hash::make(Str::random(40)),
                 'email_verified_at' => now(),
                 'role' => $validated['role'] ?? 'reader',
+                'locale' => $validated['locale'] ?? (in_array($request->header('X-Locale'), ['en', 'sw'], true) ? $request->header('X-Locale') : 'en'),
             ]);
         }
 
@@ -141,13 +145,15 @@ class AuthController extends Controller
     private function tokenResponse(User $user, string $message, string $deviceName, int $status = 200)
     {
         return response()->json([
-            'message' => $message,
+            'message' => \Illuminate\Support\Facades\Lang::get($message, [], $user->locale ?: 'en'),
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'username' => $user->username,
                 'email' => $user->email,
                 'phone_number' => $user->phone_number,
                 'role' => $user->role,
+                'locale' => $user->locale ?: 'en',
             ],
             'token' => $user->createToken($deviceName)->plainTextToken,
             'token_type' => 'Bearer',

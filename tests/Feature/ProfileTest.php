@@ -33,6 +33,50 @@ test('profile information can be updated', function () {
     $this->assertSame('Test User', $user->name);
     $this->assertSame('test@example.com', $user->email);
     $this->assertNull($user->email_verified_at);
+    $this->assertNull($user->username);
+});
+
+test('readers can set and clear an optional username from the portal and Android API', function () {
+    $reader = User::factory()->create();
+
+    $this->actingAs($reader)->patch('/profile', [
+        'name' => $reader->name,
+        'email' => $reader->email,
+        'username' => '  Book_Lover24  ',
+    ])->assertSessionHasNoErrors()->assertRedirect('/profile');
+    expect($reader->fresh()->username)->toBe('book_lover24');
+
+    $this->actingAs($reader, 'sanctum')->patchJson('/api/profile', ['username' => 'Mobile_Reader'])
+        ->assertOk()->assertJsonPath('data.username', 'mobile_reader');
+
+    $this->actingAs($reader, 'sanctum')->patchJson('/api/profile', ['username' => null])
+        ->assertOk()->assertJsonPath('data.username', null);
+    expect($reader->fresh()->username)->toBeNull();
+});
+
+test('reader usernames must be unique and match the supported format', function () {
+    $firstReader = User::factory()->create(['username' => 'booklover']);
+    $secondReader = User::factory()->create();
+
+    $this->actingAs($secondReader)->patch('/profile', [
+        'name' => $secondReader->name,
+        'email' => $secondReader->email,
+        'username' => 'BOOKLOVER',
+    ])->assertSessionHasErrors('username');
+
+    $this->actingAs($secondReader, 'sanctum')->patchJson('/api/profile', ['username' => 'two words'])
+        ->assertUnprocessable()->assertJsonValidationErrors('username');
+
+    expect($firstReader->fresh()->username)->toBe('booklover')
+        ->and($secondReader->fresh()->username)->toBeNull();
+});
+
+test('only reader accounts can set a username', function () {
+    $author = User::factory()->create(['role' => 'author']);
+
+    $this->actingAs($author, 'sanctum')->patchJson('/api/profile', ['username' => 'authorname'])
+        ->assertUnprocessable()->assertJsonValidationErrors('username');
+    expect($author->fresh()->username)->toBeNull();
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {

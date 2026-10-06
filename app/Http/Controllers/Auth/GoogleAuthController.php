@@ -25,7 +25,7 @@ class GoogleAuthController extends Controller
             $googleUser = Socialite::driver('google')->stateless()->user();
         } catch (\Throwable $exception) {
             return redirect()->route('login')->withErrors([
-                'email' => 'Google sign in failed. Please try again.',
+                'email' => __('Google sign in failed. Please try again.'),
             ]);
         }
 
@@ -33,7 +33,7 @@ class GoogleAuthController extends Controller
 
         if (!$email) {
             return redirect()->route('login')->withErrors([
-                'email' => 'Google account did not provide an email address.',
+                'email' => __('Google account did not provide an email address.'),
             ]);
         }
 
@@ -49,11 +49,14 @@ class GoogleAuthController extends Controller
                 'password' => Hash::make(Str::random(40)),
                 'email_verified_at' => now(),
                 'role' => 'reader',
+                'locale' => in_array($request->session()->get('locale'), ['en', 'sw'], true) ? $request->session()->get('locale') : 'en',
             ]);
         }
 
         Auth::login($user, true);
         $request->session()->regenerate();
+        $request->session()->put('locale', $user->locale ?: 'en');
+        app()->setLocale($user->locale ?: 'en');
         app(UserActivityRecorder::class)->record($user, $isNewUser ? 'registered' : 'signed_in', 'web_portal');
 
         $defaultRoute = $user->isAdmin()

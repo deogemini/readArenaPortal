@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
@@ -39,7 +40,7 @@
             <p class="mt-2 text-sm leading-6 text-[#786A5D]">Save private drafts at any time. Publishing a lesson requires a passed quiz for its book.</p>
             <form action="{{ route('reader.lessons.store') }}" method="POST" class="mt-5 grid gap-4">
                 @csrf
-                <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2"><option value="">Choose a published book</option>@foreach ($books as $book)<option value="{{ $book->id }}" @selected(old('book_id') == $book->id)>{{ $book->title }}</option>@endforeach</select></label>
+                <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2"><option value="">Choose a published book</option>@foreach ($books as $book)<option data-no-translate value="{{ $book->id }}" @selected(old('book_id') == $book->id)>{{ $book->title }}</option>@endforeach</select></label>
                 <label class="grid gap-1 text-sm">Title<input name="title" value="{{ old('title') }}" maxlength="255" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2"></label>
                 <label class="grid gap-1 text-sm">Your reflection<textarea name="content" rows="7" maxlength="20000" required class="rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2">{{ old('content') }}</textarea></label>
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -65,7 +66,7 @@
                         <form action="{{ route('reader.lessons.update', $lesson) }}" method="POST" class="mt-5 grid gap-3">
                             @csrf
                             @method('PATCH')
-                            <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">@foreach ($books as $book)<option value="{{ $book->id }}" @selected($lesson->book_id === $book->id)>{{ $book->title }}</option>@endforeach</select></label>
+                            <label class="grid gap-1 text-sm">Book<select name="book_id" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">@foreach ($books as $book)<option data-no-translate value="{{ $book->id }}" @selected($lesson->book_id === $book->id)>{{ $book->title }}</option>@endforeach</select></label>
                             <label class="grid gap-1 text-sm">Title<input name="title" value="{{ $lesson->title }}" maxlength="255" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2"></label>
                             <label class="grid gap-1 text-sm">Content<textarea name="content" rows="6" maxlength="20000" required class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-2">{{ $lesson->content }}</textarea></label>
                             <div class="grid gap-3 sm:grid-cols-2">

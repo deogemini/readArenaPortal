@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
@@ -63,7 +64,7 @@
                         <select name="book_id" class="w-full rounded-xl border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2">
                             <option value="">Not needed for book-count goal</option>
                             @foreach($books as $book)
-                                <option value="{{ $book->id }}" @selected((string) old('book_id') === (string) $book->id)>{{ $book->title }}</option>
+                                <option data-no-translate value="{{ $book->id }}" @selected((string) old('book_id') === (string) $book->id)>{{ $book->title }}</option>
                             @endforeach
                         </select>
                         <p class="mt-1 text-xs text-[#786A5D]">Required when goal type is Pages.</p>
@@ -99,7 +100,7 @@
                                 {{ ucfirst($goal->goal_type) }} target: {{ $goal->current_value }} / {{ $goal->target_value }}
                             </p>
                             @if($goal->goal_type === 'pages' && $goal->book)
-                                <p class="mt-1 text-xs text-[#786A5D]">Book: {{ $goal->book->title }}</p>
+                                <p class="mt-1 text-xs text-[#786A5D]">Book: <span data-no-translate>{{ $goal->book->title }}</span></p>
                             @endif
                             <p class="mt-1 text-xs text-[#786A5D]">
                                 {{ \Illuminate\Support\Carbon::parse($goal->start_date)->format('M d, Y') }} - {{ \Illuminate\Support\Carbon::parse($goal->end_date)->format('M d, Y') }}
@@ -115,7 +116,7 @@
                                     </select>
                                     <select name="book_id" class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm">
                                         <option value="">No linked book</option>
-                                        @foreach ($books as $book)<option value="{{ $book->id }}" @selected($goal->book_id === $book->id)>{{ $book->title }}</option>@endforeach
+                                        @foreach ($books as $book)<option data-no-translate value="{{ $book->id }}" @selected($goal->book_id === $book->id)>{{ $book->title }}</option>@endforeach
                                     </select>
                                     <input type="number" name="target_value" value="{{ $goal->target_value }}" min="1" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm" aria-label="Target value">
                                     <input type="date" name="start_date" value="{{ \Illuminate\Support\Carbon::parse($goal->start_date)->toDateString() }}" required class="rounded-xl border border-[#d8c9ad] bg-white px-3 py-2 text-sm" aria-label="Start date">

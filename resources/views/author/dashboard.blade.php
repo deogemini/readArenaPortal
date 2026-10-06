@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
@@ -62,7 +63,7 @@
                 <select name="book_id" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
                     <option value="">Select book</option>
                     @foreach($books as $book)
-                        <option value="{{ $book->id }}">{{ $book->title }}</option>
+                        <option data-no-translate value="{{ $book->id }}">{{ $book->title }}</option>
                     @endforeach
                 </select>
                 <input name="title" placeholder="Quiz title" class="w-full rounded-xl border border-[#d8c9ad] bg-white px-4 py-2" required>
@@ -114,7 +115,7 @@
             <div class="mt-4 grid gap-3 md:grid-cols-2">
                 @forelse($books as $book)
                     <div class="rounded-[16px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
-                        <p class="font-semibold text-[#1B0D05]">{{ $book->title }}</p>
+                        <p class="font-semibold text-[#1B0D05]" data-no-translate>{{ $book->title }}</p>
                         <p class="mt-1 text-sm text-[#5e544d]">Status: {{ ucfirst($book->status) }}</p>
                         <p class="mt-1 text-sm text-[#5e544d]">PDF: {{ $book->pdf_path ? 'Uploaded' : 'Missing' }}</p>
                     </div>

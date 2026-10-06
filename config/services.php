@@ -43,8 +43,8 @@ return [
 
     'flex_sms' => [
         'base_url' => env('FLEX_SMS_BASE_URL', 'https://sms.flex.co.tz'),
-        'client_id' => env('FLEX_SMS_CLIENT_ID', 'F00102'),
-        'client_secret' => env('FLEX_SMS_CLIENT_SECRET', '41274e60-a864-46e9-9ef6-12rf54tg'),
+        'client_id' => env('FLEX_SMS_CLIENT_ID'),
+        'client_secret' => env('FLEX_SMS_CLIENT_SECRET'),
         'sender_id' => env('FLEX_SMS_SENDER_ID', 'Flex'),
     ],
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,8 +11,10 @@
     </style>
 </head>
 <body>
+@include('components.language-switcher')
 <div id="swagger-ui"></div>
 <script src="https://unpkg.com/swagger-ui-dist@5.17.2/swagger-ui-bundle.js"></script>
+@vite('resources/js/app.js')
 <script src="https://unpkg.com/swagger-ui-dist@5.17.2/swagger-ui-standalone-preset.js"></script>
 <script>
     window.onload = function () {

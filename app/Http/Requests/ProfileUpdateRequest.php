@@ -18,6 +18,9 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'username' => $this->user()->isReader()
+                ? ['sometimes', 'nullable', 'string', 'min:3', 'max:24', 'regex:/\A[a-z0-9_]+\z/', Rule::unique(User::class, 'username')->ignore($this->user()->id)]
+                : ['prohibited'],
             'email' => [
                 'required',
                 'string',
@@ -27,6 +30,16 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
             'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'locale' => ['sometimes', 'required', 'string', Rule::in(['en', 'sw'])],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $username = $this->input('username');
+
+        if (is_string($username)) {
+            $this->merge(['username' => mb_strtolower(trim($username))]);
+        }
     }
 }

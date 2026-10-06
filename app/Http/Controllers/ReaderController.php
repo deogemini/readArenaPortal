@@ -367,7 +367,7 @@ class ReaderController extends Controller
         ]);
     }
 
-    public function storeGoal(Request $request): RedirectResponse
+    public function storeGoal(Request $request, ReaderShelfService $shelves): RedirectResponse
     {
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -393,11 +393,12 @@ class ReaderController extends Controller
             'end_date' => $payload['end_date'],
             'status' => 'active',
         ]);
+        $shelves->refreshBookGoals($request->user());
 
         return redirect()->route('reader.goals')->with('status', 'Reading goal created successfully.');
     }
 
-    public function updateGoal(Request $request, ReadingGoal $goal): RedirectResponse
+    public function updateGoal(Request $request, ReadingGoal $goal, ReaderShelfService $shelves): RedirectResponse
     {
         abort_unless((int) $goal->user_id === (int) $request->user()->id, 404);
         $payload = $request->validate([
@@ -423,6 +424,7 @@ class ReaderController extends Controller
             'end_date' => $payload['end_date'],
             'status' => $goal->current_value >= $payload['target_value'] ? 'achieved' : 'active',
         ]);
+        $shelves->refreshBookGoals($request->user());
 
         return redirect()->route('reader.goals')->with('status', 'Reading goal updated successfully.');
     }
@@ -571,7 +573,7 @@ class ReaderController extends Controller
         return redirect()->route('reader.duels')->with('status', 'Duel invitation cancelled.');
     }
 
-    public function shows()
+    public function shows(ShowParticipationService $participation)
     {
         $readerId = auth()->id();
         $shows = LiveShow::query()
@@ -585,10 +587,12 @@ class ReaderController extends Controller
         $applications = ShowApplication::query()
             ->where('user_id', $readerId)
             ->whereIn('live_show_id', $shows->pluck('id'))
+            ->with('book:id,title,slug')
             ->get()
             ->keyBy('live_show_id');
+        $eligibleBooks = $participation->eligibleBooks(auth()->user());
 
-        return view('reader.shows', compact('shows', 'rsvpIds', 'applications'));
+        return view('reader.shows', compact('shows', 'rsvpIds', 'applications', 'eligibleBooks'));
     }
 
     public function rsvpShow(Request $request, LiveShow $show, ShowParticipationService $participation): RedirectResponse
@@ -607,16 +611,19 @@ class ReaderController extends Controller
 
     public function applyToShow(Request $request, LiveShow $show, ShowParticipationService $participation): RedirectResponse
     {
-        $payload = $request->validate(['motivation' => ['required', 'string', 'min:20', 'max:2000']]);
-        $participation->apply($request->user(), $show, $payload['motivation']);
+        $payload = $request->validate([
+            'book_id' => ['required', 'integer', 'exists:books,id'],
+            'motivation' => ['required', 'string', 'min:20', 'max:2000'],
+        ]);
+        $participation->apply($request->user(), $show, (int) $payload['book_id'], $payload['motivation']);
 
-        return redirect()->route('reader.shows')->with('status', 'Guest application submitted.');
+        return redirect()->route('reader.shows')->with('status', 'Live show application submitted.');
     }
 
     public function withdrawShowApplication(Request $request, ShowApplication $application, ShowParticipationService $participation): RedirectResponse
     {
         $participation->withdraw($request->user(), $application);
 
-        return redirect()->route('reader.shows')->with('status', 'Guest application withdrawn.');
+        return redirect()->route('reader.shows')->with('status', 'Live show application withdrawn.');
     }
 }

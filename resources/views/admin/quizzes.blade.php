@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#1B0D05] text-[#F4EBD8]">
+@include('components.language-switcher')
 <div class="min-h-screen">
     <aside class="fixed inset-y-0 left-0 hidden w-72 border-r border-[#3d261b] bg-[#130804] p-6 lg:block">
         <div class="flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
@@ -62,13 +63,13 @@
                             @foreach($pendingQuizAttempts as $pendingAttempt)
                                 <form action="{{ route('admin.quiz-attempts.review', $pendingAttempt) }}" method="POST" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] p-4">
                                     @csrf
-                                    <h3 class="font-semibold">{{ $pendingAttempt->user?->name ?? 'Reader' }} · {{ $pendingAttempt->quiz?->title }} · {{ $pendingAttempt->quiz?->book?->title }}</h3>
+                                    <h3 class="font-semibold" data-no-translate>{{ $pendingAttempt->user?->name ?? 'Reader' }} · {{ $pendingAttempt->quiz?->title }} · {{ $pendingAttempt->quiz?->book?->title }}</h3>
                                     <p class="mt-1 text-xs text-[#b8ab95]">Submitted {{ $pendingAttempt->created_at?->format('Y-m-d H:i') }}</p>
                                     @foreach($pendingAttempt->responses->filter(fn ($response) => $response->question?->question_type === 'written_response') as $response)
                                         <div class="mt-4 rounded-lg border border-[#3d261b] p-3">
-                                            <p class="font-medium">{{ $response->question->prompt }}</p>
-                                            <p class="mt-2 whitespace-pre-wrap text-sm text-[#d8c9ad]">{{ $response->answer_text }}</p>
-                                            <p class="mt-2 text-xs text-[#D8A83E]">Marking guide: {{ $response->question->answers->firstWhere('is_correct', true)?->body }}</p>
+                                            <p class="font-medium" data-no-translate>{{ $response->question->prompt }}</p>
+                                            <p class="mt-2 whitespace-pre-wrap text-sm text-[#d8c9ad]" data-no-translate>{{ $response->answer_text }}</p>
+                                            <p class="mt-2 text-xs text-[#D8A83E]">Marking guide: <span data-no-translate>{{ $response->question->answers->firstWhere('is_correct', true)?->body }}</span></p>
                                             <label class="mt-3 flex items-center gap-2 text-sm">Points (0–{{ $response->question->points }})
                                                 <input type="number" name="points_awarded[{{ $response->quiz_question_id }}]" min="0" max="{{ $response->question->points }}" required class="w-24 rounded-lg border border-[#3d261b] bg-[#2B170D] px-3 py-2">
                                             </label>
@@ -89,7 +90,7 @@
                             <select name="book_id" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                                 <option value="">Select book</option>
                                 @foreach($books as $book)
-                                    <option value="{{ $book->id }}" @selected((string) old('book_id') === (string) $book->id)>{{ $book->title }}</option>
+                                    <option data-no-translate value="{{ $book->id }}" @selected((string) old('book_id') === (string) $book->id)>{{ $book->title }}</option>
                                 @endforeach
                             </select>
                             <input name="title" value="{{ old('title') }}" placeholder="Quiz title" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
@@ -126,7 +127,7 @@
                             <select name="quiz_id" id="quiz-select" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>
                                 <option value="">Select quiz</option>
                                 @foreach($quizzes as $quiz)
-                                    <option value="{{ $quiz->id }}" @selected((string) old('quiz_id') === (string) $quiz->id)>{{ $quiz->title }}</option>
+                                    <option data-no-translate value="{{ $quiz->id }}" @selected((string) old('quiz_id') === (string) $quiz->id)>{{ $quiz->title }}</option>
                                 @endforeach
                             </select>
                             <textarea name="prompt" rows="3" placeholder="Question prompt" class="rounded-xl border border-[#3d261b] bg-[#1B0D05] px-4 py-2" required>{{ old('prompt') }}</textarea>
@@ -176,7 +177,7 @@
                             @forelse($quizzes as $quiz)
                                 <tr class="border-t border-[#3d261b]">
                                     <td class="px-4 py-3">
-                                        {{ $quiz->title }}
+                                        <span data-no-translate>{{ $quiz->title }}</span>
                                         <details class="mt-2">
                                             <summary class="cursor-pointer text-xs text-[#D8A83E]">Edit quiz settings</summary>
                                             <form action="{{ route('admin.quizzes.update', $quiz) }}" method="POST" class="mt-2 grid min-w-64 gap-2 rounded-xl border border-[#3d261b] bg-[#2B170D] p-3">
@@ -191,7 +192,7 @@
                                             </form>
                                         </details>
                                     </td>
-                                    <td class="px-4 py-3">{{ $quiz->book->title ?? '-' }}</td>
+                                    <td class="px-4 py-3" data-no-translate>{{ $quiz->book->title ?? '-' }}</td>
                                     <td class="px-4 py-3">{{ $quiz->questions->count() }}</td>
                                     <td class="px-4 py-3">{{ $quiz->attempts_count }}</td>
                                     <td class="px-4 py-3">{{ $quiz->pass_mark }}%</td>

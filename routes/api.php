@@ -4,10 +4,15 @@ use App\Http\Controllers\Api\ApiDocsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileController;
 use App\Http\Controllers\Api\PublicBookPerformanceController;
+use App\Http\Controllers\Api\ReaderIdeaController;
+use App\Http\Controllers\Api\TranslationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/documentation', [ApiDocsController::class, 'index']);
 Route::get('/docs/swagger', [ApiDocsController::class, 'index']);
+Route::get('/translations/{locale}', [TranslationController::class, 'show'])
+    ->where('locale', 'en|sw')
+    ->middleware('throttle:60,1');
 
 Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -20,7 +25,14 @@ Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->m
 Route::get('/public/books/{book}/quiz-performance', [PublicBookPerformanceController::class, 'show'])
     ->middleware('throttle:60,1');
 
-Route::middleware(['auth:sanctum', 'track.user.activity'])->group(function () {
+Route::middleware(['auth:sanctum', 'set.locale', 'track.user.activity'])->group(function () {
+    Route::get('/feedback', [ReaderIdeaController::class, 'index'])->name('api.reader-ideas.index');
+    Route::post('/feedback', [ReaderIdeaController::class, 'store'])->middleware('throttle:5,1')->name('api.reader-ideas.store');
+    Route::get('/feedback/{idea}', [ReaderIdeaController::class, 'show'])->name('api.reader-ideas.show');
+    Route::get('/feedback/{idea}/attachment', [ReaderIdeaController::class, 'downloadAttachment'])->name('api.reader-ideas.attachment');
+
+    Route::get('/language', [MobileController::class, 'language']);
+    Route::patch('/language', [MobileController::class, 'updateLanguage']);
     Route::post('/auth/logout', [MobileController::class, 'logout']);
     Route::get('/dashboard', [MobileController::class, 'dashboard']);
     Route::get('/notifications', [MobileController::class, 'notifications']);
@@ -29,6 +41,8 @@ Route::middleware(['auth:sanctum', 'track.user.activity'])->group(function () {
     Route::delete('/notifications/{notification}', [MobileController::class, 'deleteNotification']);
     Route::get('/notification-preferences', [MobileController::class, 'notificationPreferences']);
     Route::patch('/notification-preferences', [MobileController::class, 'updateNotificationPreferences']);
+    Route::put('/push-token', [MobileController::class, 'registerPushToken']);
+    Route::delete('/push-token', [MobileController::class, 'unregisterPushToken']);
 
     Route::get('/profile', [MobileController::class, 'profile']);
     Route::patch('/profile', [MobileController::class, 'updateProfile']);
@@ -66,6 +80,7 @@ Route::middleware(['auth:sanctum', 'track.user.activity'])->group(function () {
     Route::patch('/recommendations/{recommendation}', [MobileController::class, 'updateRecommendation']);
     Route::delete('/recommendations/{recommendation}', [MobileController::class, 'deleteRecommendation']);
     Route::get('/shows', [MobileController::class, 'shows']);
+    Route::get('/shows/{show}/application-options', [MobileController::class, 'showApplicationOptions']);
     Route::post('/shows/{show}/rsvp', [MobileController::class, 'showRsvp']);
     Route::delete('/shows/{show}/rsvp', [MobileController::class, 'cancelShowRsvp']);
     Route::get('/show-applications', [MobileController::class, 'showApplications']);

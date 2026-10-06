@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
+@include('components.language-switcher')
 <div class="min-h-screen">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
@@ -19,8 +20,8 @@
             <img src="{{ $book->cover_image ?? 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80' }}" alt="{{ $book->title }}" class="h-80 w-full rounded-[20px] object-cover">
             <div class="mt-6">
                 <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">{{ $book->genres->first()?->name ?? 'Classic' }}</p>
-                <h1 class="mt-2 font-serif text-3xl text-[#1B0D05]">{{ $book->title }}</h1>
-                <p class="mt-2 text-sm text-[#786A5D]">by {{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
+                <h1 class="mt-2 font-serif text-3xl text-[#1B0D05]" data-no-translate>{{ $book->title }}</h1>
+                <p class="mt-2 text-sm text-[#786A5D]">by <span data-no-translate>{{ $book->authors->first()?->name ?? 'Unknown author' }}</span></p>
                 <p class="mt-2 text-sm text-[#786A5D]">{{ $reviews->total() ? number_format($reviewAverage, 1).' / 5 from '.$reviews->total().' reader reviews' : 'No reader reviews yet' }}</p>
                 <div class="mt-5 flex flex-wrap gap-3 text-sm">
                     <span class="rounded-full border border-[#d8c9ad] px-3 py-1">{{ $book->publication_year }}</span>
@@ -31,7 +32,7 @@
         </div>
         <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
             <h2 class="font-serif text-3xl text-[#1B0D05]">About the work</h2>
-            <p class="mt-4 text-base leading-8 text-[#5e544d]">{{ $book->description }}</p>
+            <p class="mt-4 text-base leading-8 text-[#5e544d]" data-no-translate>{{ $book->description }}</p>
             <div class="mt-8 rounded-[22px] border border-[#d8c9ad] bg-[#F4EBD8] p-5">
                 <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Reading journey</p>
                 <ul class="mt-4 space-y-3 text-sm text-[#5e544d]">
@@ -67,7 +68,7 @@
                     @foreach($quizzes as $quiz)
                         <article class="rounded-[20px] border border-[#d8c9ad] bg-white p-5">
                             <div class="flex flex-wrap items-start justify-between gap-4">
-                                <div><h4 class="font-semibold text-[#1B0D05]">{{ $quiz->title }}</h4><p class="mt-1 text-sm text-[#786A5D]">{{ $quiz->questions_count }} questions</p></div>
+                                <div><h4 class="font-semibold text-[#1B0D05]" data-no-translate>{{ $quiz->title }}</h4><p class="mt-1 text-sm text-[#786A5D]">{{ $quiz->questions_count }} questions</p></div>
                                 <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-[#5e544d] sm:grid-cols-3 lg:grid-cols-4">
                                     <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->readers_count }}</span> readers</p>
                                     <p><span class="font-semibold text-[#1B0D05]">{{ $quiz->attempts_count }}</span> attempts</p>
@@ -94,10 +95,10 @@
                 @forelse ($recommendations as $recommendation)
                     <article class="rounded-[20px] border border-[#d8c9ad] bg-[#F4EBD8] p-5">
                         <div class="flex items-center justify-between gap-3">
-                            <p class="font-semibold text-[#1B0D05]">{{ $recommendation->user?->name ?? 'ReadArena reader' }}</p>
+                            <p class="font-semibold text-[#1B0D05]" data-no-translate>{{ $recommendation->user?->name ?? 'ReadArena reader' }}</p>
                             <span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $recommendation->rating }} / 5</span>
                         </div>
-                        <p class="mt-3 text-sm leading-7 text-[#5e544d]">{{ $recommendation->message }}</p>
+                        <p class="mt-3 text-sm leading-7 text-[#5e544d]" data-no-translate>{{ $recommendation->message }}</p>
                     </article>
                 @empty
                     <p class="text-sm text-[#786A5D]">No public recommendations for this book yet.</p>
@@ -114,7 +115,7 @@
                     <article class="rounded-[20px] border border-[#d8c9ad] bg-[#F4EBD8] p-5">
                         <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-semibold text-[#1B0D05]">{{ $review->title ?: 'Reader review' }}</h3><span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ $review->rating }} / 5</span></div>
                         <p class="mt-2 text-sm leading-7 text-[#5e544d]">{{ $review->body }}</p>
-                        <p class="mt-3 text-xs text-[#786A5D]">{{ $review->user?->name ?? 'ReadArena reader' }}</p>
+                        <p class="mt-3 text-xs text-[#786A5D]" data-no-translate>{{ $review->user?->name ?? 'ReadArena reader' }}</p>
                     </article>
                 @empty
                     <p class="text-sm text-[#786A5D]">No approved reviews for this book yet.</p>

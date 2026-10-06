@@ -49,6 +49,10 @@ The application returns a readable HTTP 413 page if PHP's effective `post_max_si
 
 Open the interactive Swagger UI at `/api/documentation`. The OpenAPI JSON is at `/docs/api-docs.json`.
 
+## English and Kiswahili
+
+The portal supports English (`en`) and Kiswahili (`sw`). Visitors can switch languages from the language selector; signed-in users keep their choice in their account and session. For Android, `GET /api/language` returns the saved choice and available languages, and `PATCH /api/language` with `{ "locale": "sw" }` or `{ "locale": "en" }` saves it. `GET /api/translations/sw` returns the shared UI string catalog; English uses each key as its displayed text. API clients can also send `X-Locale: sw` or `Accept-Language: sw` to choose a request language. Book and reader-authored content stays in the language it was entered in. After deployment, apply the new user locale field with `php artisan migrate --force` and rebuild frontend assets with `npm run build`.
+
 Swagger lists every registered Android API operation. Select Production, Local development, or Android emulator as the server at the top of the page. The production base URL is `https://arenayakusoma.eportsolutions.co.tz/api`.
 
 All API paths below are relative to the `/api` base URL. Except for authentication, documentation, and the public quiz-performance endpoint, send the token returned by register or login on every request:
@@ -83,8 +87,9 @@ Register accepts `name`, `email`, `password`, `password_confirmation`, optional 
 | PATCH | `/notifications/read-all` | Mark all your unread notifications as read |
 | DELETE | `/notifications/{notification}` | Delete an owned notification |
 | GET, PATCH | `/notification-preferences` | Read or update per-type in-app notification settings |
+| PUT, DELETE | `/push-token` | Register or remove this Android device's Firebase push token |
 | GET, PATCH | `/profile` | Read or update name, email, and phone number |
-| POST | `/profile/photo` | Upload `profile_photo` as multipart form data |
+| POST | `/profile/photo` | Upload `profile_photo` as JPEG, PNG, or WebP multipart form data (up to 2 MB); response returns the refreshed profile including `profile_photo_url` |
 | GET | `/books` | Search and browse published books |
 | GET | `/books/{book}` | Book details, published quizzes, and this reader's progress |
 | GET | `/books/{book}/content` | Stream an authorized published book PDF |
@@ -103,13 +108,15 @@ Register accepts `name`, `email`, `password`, `password_confirmation`, optional 
 | GET, POST, PATCH, DELETE | `/recommendations`, `/recommendations/{recommendation}` | Manage owned recommendations; publishing requires a passing quiz for the selected book |
 | GET | `/shows` | List upcoming shows, RSVP count, and the current reader's RSVP state |
 | POST, DELETE | `/shows/{show}/rsvp` | RSVP to or cancel an upcoming show |
-| GET | `/show-applications` | List guest applications and their review statuses |
-| POST | `/shows/{show}/applications` | Apply as a show guest with a short motivation statement |
-| DELETE | `/show-applications/{application}` | Withdraw a pending guest application |
-| GET, POST | `/duels` | List duel records or challenge a reader verified for the same book |
-| PATCH | `/duels/{duel}/respond` | Accept or reject an invitation as the invited reader |
+| GET | `/shows/{show}/application-options` | List published books whose quizzes you have passed for a show application |
+| GET | `/show-applications` | List your live show applications, selected books, and review statuses |
+| POST | `/shows/{show}/applications` | Apply with `{ "book_id": 12, "motivation": "..." }` |
+| DELETE | `/show-applications/{application}` | Withdraw a pending show application |
+| GET, POST | `/duels` | List invitations and eligible opponents, or invite a reader verified for the same book |
+| PATCH | `/duels/{duel}/respond` | Accept or reject an invitation as the invited reader; notifies the challenger |
 | PATCH | `/duels/{duel}/cancel` | Cancel an invitation as its challenger |
-| GET | `/leaderboard?period=weekly` | Read daily, weekly, monthly, or all-time verified quiz rankings |
+| GET | `/leaderboard?type=reading&period=weekly` | Paginated reading rankings for all readers, including completed books and book-goal performance |
+| GET | `/leaderboard?type=quizzes&period=weekly` | Daily, weekly, monthly, or all-time quiz competition rankings |
 | GET | `/quizzes/{quiz}` | Load a published quiz and this reader's attempt count |
 | POST | `/quizzes/{quiz}/submit` | Submit `{ "answers": { "QUESTION_ID": [ANSWER_ID, ...] } }`; a single integer remains accepted for single-choice questions |
 
@@ -134,11 +141,19 @@ For multi-select questions, readers earn the question's points only when they se
 
 Book search supports `q`, `genre` (slug or name), `author`, `publisher`, `language`, `publication_year`, `min_pages`, `max_pages`, `reading_status`, `quiz_available`, `featured`, and `min_rating`. Use `sort` with `newest`, `title`, `highest_rated`, `popularity`, `most_completed`, or `most_dueled`; `page` and `per_page` (1 to 50) control pagination. The response keeps results in `data` and includes pagination values in `meta`. Book summaries include review, reader, completion, duel, and quiz activity metrics: `published_quizzes_count`, `quiz_readers_count`, `quiz_attempts_count`, `quiz_pending_review_attempts_count`, `quiz_graded_attempts_count`, `quiz_passed_attempts_count`, `quiz_average_score`, `quiz_pass_rate`, and `quiz_best_score`. Each quiz also includes a `performance` object with distinct readers, attempts, pending reviews, graded attempts, passed attempts, average score, pass rate, and best score. Pending written responses count as attempts, but are excluded from score averages and pass rates until an administrator grades them. These are aggregate results and do not expose individual reader scores or identities. Book records provide `cover_image_url`; book details provide an authenticated `pdf_url` pointing to `/books/{book}/content`. Send the bearer token when streaming. New book PDFs are saved outside public storage. Quiz questions support `single_choice`, `multiple_choice`, `true_false`, `one_word`, `short_answer`, and `written_response`. One-word and short answers are automatically checked against accepted variants without regard to case or punctuation. Written responses are saved for administrator review; API submissions return `review_status: "pending_review"` and a null score until graded. Quiz responses never disclose accepted answers or marking guides. For choice questions, submit one answer ID or an array of selected IDs; multi-choice points are awarded only when every correct option and no incorrect options are selected. For a pages goal, send `goal_type: "pages"` and a published `book_id`. For a books goal, use `goal_type: "books"` and omit `book_id`. Both types require `title`, `target_value`, `start_date`, and `end_date` (`YYYY-MM-DD`). Reading progress cannot exceed the book's page count when one is set. Repeated syncs at the same or an earlier page do not add pages to the total. Goal updates preserve completed progress up to the new target.
 
-Reader content may be saved as a private draft without quiz verification. Publishing a lesson, recommendation, duel challenge, or show guest application requires a passing attempt for the same published book. Duel invitations support pending, accepted, rejected, and cancelled states. Guest application quiz scores are derived from the reader's best passing attempt, never accepted from client input. The leaderboard adds the best passing score once per published quiz in the chosen period.
+Reader content may be saved as a private draft without quiz verification. Publishing a lesson, recommendation, or duel challenge requires a passing attempt for the same published book. Live show applications also require a passing quiz for the book selected by the reader; the server records the reader's best passing score. Duel invitations support pending, accepted, rejected, and cancelled states. The leaderboard adds the best passing score once per published quiz in the chosen period.
+
+For profile photos, send `POST /api/profile/photo` as `multipart/form-data` with the file field `profile_photo`; accepted image formats are JPEG, PNG, and WebP, with a 2 MB maximum. Use the returned `data.profile_photo_url` to refresh the Android profile. Reading rankings include every reader, even readers with no completed books. They rank by distinct books marked completed within the selected period, then by book-goal completion rate and achieved book-goal count. Pass `type=reading` or `type=quizzes`; reading results are paginated with `page` and `per_page` (maximum 50). Mark books completed through `PUT /api/books/{book_id}/shelf` with `{ "status": "completed" }` for reading rankings and book goals to update. Quiz rankings remain the default type for backward compatibility.
+
+Reader usernames are optional and can be set or cleared in the web profile or with `PATCH /api/profile`. Send `username` as 3–24 lowercase letters, numbers, or underscores; values are normalized to lowercase and must be unique. The profile API returns the saved username, or `null` if the reader has not set one.
+
+To send a duel request, call `GET /api/duels` to retrieve books you are verified for and eligible opponents, then `POST /api/duels` with `{ "book_id": 12, "opponent_id": 34 }`. The opponent receives an in-app notification and can accept or reject with `PATCH /api/duels/{duel_id}/respond` and `{ "action": "accept" }` or `{ "action": "reject" }`. The challenger can cancel a pending invite at `/api/duels/{duel_id}/cancel`. Both readers must have passed a published quiz for that book, and duplicate active invitations are prevented. These endpoints and request/response schemas are available in Swagger.
+
+Readers can send product improvement suggestions from Android with `POST /api/feedback` as `multipart/form-data`, including required `title` and `description`, optional `category` (`app`, `books`, `quizzes`, `community`, or `other`), and an optional `attachment` (PDF, image, TXT, DOC, or DOCX up to 10 MB). `GET /api/feedback` lists the signed-in reader's submissions, and `GET /api/feedback/{idea}` returns its latest review status. The attachment URL returned by the API requires the same bearer token and is available only to its owner or an administrator. Administrators can review submissions, update their status, add private internal notes, and download attachments at Admin > Reader ideas. All endpoints are documented in Swagger under Feedback.
 
 Quiz submission returns `score` as a percentage from 0 to 100, `passed`, the saved `attempt_id`, `attempts_used`, and `review_status`. For `written_response`, score and pass state are null until an administrator reviews the response. Submit one or more selected answer IDs for choice questions and a string for text questions.
 
-In-app notifications are created for quiz results, duel invitations and responses, and show RSVP confirmations. Notification preferences can suppress each supported type. Email and push delivery are not wired to these API events yet.
+Quiz results, duel invitations and responses, and show RSVP confirmations are delivered through in-app notifications and each globally enabled channel: email, SMS, and Android push. Reader in-app preferences only control the in-app copy. Email, Firebase, and Flex SMS delivery can be enabled and edited in Admin → Settings; SMTP passwords, Firebase service-account JSON, and SMS client secrets are encrypted in the database and never shown again in the settings form. Firebase push requires the Android app to register its current FCM token with `PUT /api/push-token` using the signed-in bearer token; unregister it with `DELETE /api/push-token` on sign-out. The Firebase service-account JSON is configured by an administrator in the portal and is not sent to Android clients.
 
 ## Android networking notes
 

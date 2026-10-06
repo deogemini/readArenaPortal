@@ -151,12 +151,19 @@ class PublicController extends Controller
 
     public function leaderboard(Request $request, LeaderboardService $leaderboard)
     {
-        $payload = $request->validate(['period' => ['nullable', 'in:daily,weekly,monthly,all_time']]);
+        $payload = $request->validate([
+            'period' => ['nullable', 'in:daily,weekly,monthly,all_time'],
+            'type' => ['nullable', 'in:reading,quizzes'],
+        ]);
         $period = $payload['period'] ?? 'weekly';
+        $type = $payload['type'] ?? 'quizzes';
 
         return view('public.leaderboard', [
             'period' => $period,
-            'rankings' => $leaderboard->rankings($period),
+            'type' => $type,
+            'rankings' => $type === 'reading'
+                ? $leaderboard->readingRankings($period)
+                : $leaderboard->rankings($period),
         ]);
     }
 }

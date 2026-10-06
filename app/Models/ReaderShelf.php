@@ -9,7 +9,11 @@ class ReaderShelf extends Model
 {
     public const STATUSES = ['want_to_read', 'currently_reading', 'completed', 'paused', 'abandoned'];
 
-    protected $fillable = ['user_id', 'book_id', 'status'];
+    protected $fillable = ['user_id', 'book_id', 'status', 'completed_at'];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
+    ];
 
     public function user(): BelongsTo
     {

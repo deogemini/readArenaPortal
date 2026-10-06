@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,8 +11,10 @@
         h1 { margin: .5rem 0; font-family: Georgia, serif; font-size: 2rem; }
         a { display: inline-block; margin-top: 1rem; padding: .75rem 1.25rem; border-radius: 999px; background: #1b0d05; color: #f4ebd8; text-decoration: none; }
     </style>
+    @vite('resources/js/app.js')
 </head>
 <body class="min-h-screen bg-[#F4EBD8] px-6 py-16 text-[#24150D]">
+@include('components.language-switcher')
     <main>
         <p class="eyebrow">Upload limit reached</p>
         <h1>This upload is too large.</h1>

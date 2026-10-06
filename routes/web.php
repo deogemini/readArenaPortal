@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthorController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\ReaderController;
 use App\Http\Controllers\Api\ApiDocsController;
@@ -10,11 +11,19 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PublicController::class, 'index'])->name('home');
 Route::get('/api/docs/swagger', [ApiDocsController::class, 'index'])->name('api.docs.swagger');
+Route::get('/translations/{locale}.json', function (string $locale) {
+    abort_unless($locale === 'sw', 404);
+
+    $catalog = json_decode(file_get_contents(lang_path('sw.json')), true, 512, JSON_THROW_ON_ERROR);
+
+    return response()->json($catalog)->header('Cache-Control', 'public, max-age=3600');
+})->name('translations.show');
 Route::get('/about', [PublicController::class, 'about'])->name('about');
 Route::get('/library', [PublicController::class, 'library'])->name('library');
 Route::get('/pro-arena', [PublicController::class, 'proArena'])->name('pro-arena');
 Route::get('/leaderboard', [PublicController::class, 'leaderboard'])->name('leaderboard');
 Route::get('/books/{slug}', [PublicController::class, 'book'])->name('books.show');
+Route::post('/language', [LanguageController::class, 'update'])->name('language.update');
 
 Route::middleware(['auth', 'verified', 'track.user.activity'])->group(function () {
     Route::get('/dashboard', function () {
@@ -100,11 +109,15 @@ Route::middleware(['auth', 'verified', 'admin', 'track.user.activity'])->prefix(
     Route::patch('/show-applications/{application}', [AdminController::class, 'reviewShowApplication'])->name('admin.show-applications.update');
     Route::get('/reviews', [AdminController::class, 'reviews'])->name('admin.reviews');
     Route::patch('/reviews/{review}', [AdminController::class, 'moderateReview'])->name('admin.reviews.update');
+    Route::get('/reader-ideas', [AdminController::class, 'readerIdeas'])->name('admin.reader-ideas');
+    Route::patch('/reader-ideas/{idea}', [AdminController::class, 'updateReaderIdea'])->name('admin.reader-ideas.update');
+    Route::get('/reader-ideas/{idea}/attachment', [AdminController::class, 'downloadReaderIdeaAttachment'])->name('admin.reader-ideas.attachment');
     Route::get('/packages', [AdminController::class, 'packages'])->name('admin.packages');
     Route::post('/packages', [AdminController::class, 'storePackage'])->name('admin.packages.store');
     Route::patch('/packages/{package}', [AdminController::class, 'updatePackage'])->name('admin.packages.update');
     Route::delete('/packages/{package}', [AdminController::class, 'destroyPackage'])->name('admin.packages.destroy');
     Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
+    Route::post('/settings/notification-channels', [AdminController::class, 'updateNotificationChannelSettings'])->name('admin.settings.notification-channels.update');
     Route::post('/settings/sms-gateway', [AdminController::class, 'updateSmsGatewaySettings'])->name('admin.settings.sms-gateway.update');
 });
 

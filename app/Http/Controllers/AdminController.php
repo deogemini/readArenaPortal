@@ -10,12 +10,14 @@ use App\Models\Genre;
 use App\Models\Lesson;
 use App\Models\LiveCompetitionVideo;
 use App\Models\LiveShow;
+use App\Models\NotificationChannelSetting;
 use App\Models\PlatformSetting;
 use App\Models\Publisher;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\QuizQuestion;
 use App\Models\Recommendation;
+use App\Models\ReaderIdea;
 use App\Models\SmsGatewaySetting;
 use App\Models\ShowApplication;
 use App\Models\SubscriptionPackage;
@@ -642,11 +644,12 @@ class AdminController extends Controller
         });
 
         $attempt->refresh()->load(['quiz', 'user']);
-        $notifications->send(
+        $notifications->sendTranslated(
             $attempt->user,
             $attempt->passed ? 'quiz_passed' : 'quiz_failed',
             $attempt->passed ? 'Quiz passed' : 'Quiz reviewed',
-            'Your written response for '.$attempt->quiz->title.' was reviewed. You scored '.$attempt->score.'%.',
+            'Your written response for :quiz was reviewed. You scored :score%.',
+            ['quiz' => $attempt->quiz->title, 'score' => $attempt->score],
             ['quiz_id' => $attempt->quiz_id, 'attempt_id' => $attempt->id, 'score' => $attempt->score, 'passed' => $attempt->passed],
         );
 
@@ -690,10 +693,61 @@ class AdminController extends Controller
         return redirect()->route('admin.reviews')->with('status', 'Review '.$payload['status'].'.');
     }
 
+    public function readerIdeas(Request $request)
+    {
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::in(['new', 'reviewing', 'planned', 'completed', 'declined'])],
+            'q' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $query = ReaderIdea::query()->with('user:id,name,email')->latest();
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (! empty($filters['q'])) {
+            $search = trim($filters['q']);
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhereHas('user', fn (Builder $userQuery) => $userQuery->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
+            });
+        }
+
+        return view('admin.reader-ideas', [
+            'ideas' => $query->paginate(20)->withQueryString(),
+            'filters' => $filters,
+            'statuses' => ['new', 'reviewing', 'planned', 'completed', 'declined'],
+        ]);
+    }
+
+    public function updateReaderIdea(Request $request, ReaderIdea $idea): RedirectResponse
+    {
+        $payload = $request->validate([
+            'status' => ['required', Rule::in(['new', 'reviewing', 'planned', 'completed', 'declined'])],
+            'admin_notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $idea->update($payload);
+
+        return redirect()->route('admin.reader-ideas')->with('status', 'Reader idea updated.');
+    }
+
+    public function downloadReaderIdeaAttachment(ReaderIdea $idea)
+    {
+        abort_unless($idea->attachment_path && Storage::disk('local')->exists($idea->attachment_path), 404);
+
+        return Storage::disk('local')->download($idea->attachment_path, $idea->attachment_name ?: 'reader-idea-attachment', [
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function shows()
     {
         return view('admin.shows', [
-            'shows' => LiveShow::with(['book', 'applications.user'])->withCount('applications')->orderByDesc('start_at')->paginate(10),
+            'shows' => LiveShow::with(['book', 'applications.user', 'applications.book'])->withCount('applications')->orderByDesc('start_at')->paginate(10),
             'books' => Book::where('status', 'published')->orderBy('title')->get(['id', 'title']),
         ]);
     }
@@ -703,7 +757,7 @@ class AdminController extends Controller
         $payload = $request->validate(['status' => ['required', 'in:approved,rejected']]);
         $participation->review($application, $payload['status']);
 
-        return redirect()->route('admin.shows')->with('status', 'Guest application '.$payload['status'].'.');
+        return redirect()->route('admin.shows')->with('status', 'Live show application '.$payload['status'].'.');
     }
 
     public function storeShow(Request $request): RedirectResponse
@@ -763,6 +817,7 @@ class AdminController extends Controller
         return view('admin.settings', [
             'settings' => PlatformSetting::orderBy('key')->get(),
             'smsGatewaySetting' => SmsGatewaySetting::query()->latest('id')->first(),
+            'notificationChannelSetting' => NotificationChannelSetting::query()->latest('id')->first(),
             'roleSummaries' => collect($roles)->map(function (string $role) use ($roleCounts) {
                 return [
                     'role' => $role,
@@ -774,21 +829,29 @@ class AdminController extends Controller
 
     public function updateSmsGatewaySettings(Request $request)
     {
+        $settings = SmsGatewaySetting::query()->latest('id')->first();
         $payload = $request->validate([
             'base_url' => ['required', 'url', 'max:255'],
             'client_id' => ['required', 'string', 'max:255'],
-            'client_secret' => ['required', 'string', 'max:255'],
+            'client_secret' => ['nullable', 'string', 'max:255'],
             'sender_id' => ['required', 'string', 'max:20'],
             'is_enabled' => ['nullable', 'boolean'],
         ]);
 
-        $settings = SmsGatewaySetting::query()->latest('id')->first();
+        $clientSecret = filled($payload['client_secret'] ?? null)
+            ? $payload['client_secret']
+            : $settings?->client_secret;
+        if (($payload['is_enabled'] ?? false) && blank($clientSecret)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'client_secret' => 'Enter the SMS client secret before enabling the gateway.',
+            ]);
+        }
 
         if (!$settings) {
             SmsGatewaySetting::create([
                 'base_url' => $payload['base_url'],
                 'client_id' => $payload['client_id'],
-                'client_secret' => $payload['client_secret'],
+                'client_secret' => $clientSecret,
                 'sender_id' => $payload['sender_id'],
                 'is_enabled' => (bool) ($payload['is_enabled'] ?? false),
             ]);
@@ -796,13 +859,99 @@ class AdminController extends Controller
             $settings->update([
                 'base_url' => $payload['base_url'],
                 'client_id' => $payload['client_id'],
-                'client_secret' => $payload['client_secret'],
+                'client_secret' => $clientSecret,
                 'sender_id' => $payload['sender_id'],
                 'is_enabled' => (bool) ($payload['is_enabled'] ?? false),
             ]);
         }
 
         return redirect()->route('admin.settings')->with('status', 'SMS gateway settings saved successfully.');
+    }
+
+    public function updateNotificationChannelSettings(Request $request): RedirectResponse
+    {
+        $settings = NotificationChannelSetting::query()->latest('id')->first();
+        $payload = $request->validate([
+            'email_enabled' => ['nullable', 'boolean'],
+            'smtp_host' => ['nullable', 'required_if:email_enabled,1', 'string', 'max:255'],
+            'smtp_port' => ['nullable', 'required_if:email_enabled,1', 'integer', 'min:1', 'max:65535'],
+            'smtp_username' => ['nullable', 'string', 'max:255'],
+            'smtp_password' => ['nullable', 'string', 'max:2000'],
+            'smtp_encryption' => ['required', Rule::in(['tls', 'ssl', 'none'])],
+            'mail_from_address' => ['nullable', 'required_if:email_enabled,1', 'email', 'max:255'],
+            'mail_from_name' => ['nullable', 'string', 'max:255'],
+            'push_enabled' => ['nullable', 'boolean'],
+            'firebase_project_id' => ['nullable', 'regex:/^[a-z0-9][a-z0-9-]{4,28}[a-z0-9]$/'],
+            'firebase_service_account_json' => ['nullable', 'string', 'max:30000'],
+            'clear_smtp_password' => ['nullable', 'boolean'],
+            'clear_firebase_credentials' => ['nullable', 'boolean'],
+        ]);
+
+        $serviceAccountJson = trim((string) ($payload['firebase_service_account_json'] ?? ''));
+        $serviceAccount = null;
+        if ($serviceAccountJson !== '') {
+            $serviceAccount = json_decode($serviceAccountJson, true);
+            $privateKey = is_array($serviceAccount) && ! empty($serviceAccount['private_key'])
+                ? @openssl_pkey_get_private($serviceAccount['private_key'])
+                : false;
+            if (
+                ! is_array($serviceAccount)
+                || empty($serviceAccount['client_email'])
+                || empty($serviceAccount['private_key'])
+                || empty($serviceAccount['project_id'])
+                || ! preg_match('/^[a-z0-9][a-z0-9-]{4,28}[a-z0-9]$/', (string) ($serviceAccount['project_id'] ?? ''))
+                || ! $privateKey
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'firebase_service_account_json' => 'Paste a valid Firebase service-account JSON file with a project ID, client email, and valid private key.',
+                ]);
+            }
+        }
+
+        $pushEnabled = (bool) ($payload['push_enabled'] ?? false);
+        $hasServiceAccount = $serviceAccountJson !== '' || ($settings && $settings->firebase_service_account_json && ! ($payload['clear_firebase_credentials'] ?? false));
+        if ($pushEnabled && ! $hasServiceAccount) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'firebase_service_account_json' => 'Add Firebase service-account JSON before enabling push notifications.',
+            ]);
+        }
+
+        $smtpPassword = ($payload['clear_smtp_password'] ?? false)
+            ? null
+            : (filled($payload['smtp_password'] ?? null)
+                ? $payload['smtp_password']
+                : ($settings?->smtp_password ?? config('mail.mailers.smtp.password')));
+        if (($payload['email_enabled'] ?? false) && filled($payload['smtp_username'] ?? null) && blank($smtpPassword)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'smtp_password' => 'Enter the SMTP password before enabling email delivery.',
+            ]);
+        }
+
+        $values = [
+                'email_enabled' => (bool) ($payload['email_enabled'] ?? false),
+                'smtp_host' => $payload['smtp_host'] ?? $settings?->smtp_host ?? config('mail.mailers.smtp.host'),
+                'smtp_port' => $payload['smtp_port'] ?? $settings?->smtp_port ?? config('mail.mailers.smtp.port'),
+                'smtp_username' => $payload['smtp_username'] ?? $settings?->smtp_username ?? config('mail.mailers.smtp.username'),
+                'smtp_password' => $smtpPassword,
+                'smtp_encryption' => $payload['smtp_encryption'],
+                'mail_from_address' => $payload['mail_from_address'] ?? $settings?->mail_from_address ?? config('mail.from.address'),
+                'mail_from_name' => $payload['mail_from_name'] ?? $settings?->mail_from_name ?? config('mail.from.name'),
+                'push_enabled' => $pushEnabled,
+                'firebase_project_id' => ($payload['clear_firebase_credentials'] ?? false)
+                    ? null
+                    : ($payload['firebase_project_id'] ?? $serviceAccount['project_id'] ?? $settings?->firebase_project_id),
+                'firebase_service_account_json' => ($payload['clear_firebase_credentials'] ?? false)
+                    ? null
+                    : ($serviceAccountJson !== '' ? $serviceAccountJson : $settings?->firebase_service_account_json),
+        ];
+
+        if ($settings) {
+            $settings->update($values);
+        } else {
+            NotificationChannelSetting::create($values);
+        }
+
+        return redirect()->route('admin.settings')->with('status', 'Notification delivery settings saved successfully.');
     }
 
     public function users(Request $request)
