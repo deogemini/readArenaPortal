@@ -19,6 +19,7 @@ Route::get('/translations/{locale}.json', function (string $locale) {
     return response()->json($catalog)->header('Cache-Control', 'public, max-age=3600');
 })->name('translations.show');
 Route::get('/about', [PublicController::class, 'about'])->name('about');
+Route::view('/privacy-policy', 'public.privacy-policy')->name('privacy-policy');
 Route::get('/library', [PublicController::class, 'library'])->name('library');
 Route::get('/pro-arena', [PublicController::class, 'proArena'])->name('pro-arena');
 Route::get('/leaderboard', [PublicController::class, 'leaderboard'])->name('leaderboard');

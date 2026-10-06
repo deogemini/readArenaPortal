@@ -71,6 +71,7 @@
                 <button type="submit" class="w-full rounded-full bg-[#1B0D05] px-6 py-3 text-sm font-semibold text-[#FBF6EA] shadow-sm transition hover:bg-[#2B170D]">
                     Create account
                 </button>
+                <p class="text-center text-xs leading-5 text-[#786A5D]">Review how ReadArena handles your information in our <a href="{{ route('privacy-policy') }}" class="font-semibold text-[#5c3b08] underline underline-offset-2">Privacy Policy</a>.</p>
             </form>
 
             <div class="my-6 flex items-center gap-3">

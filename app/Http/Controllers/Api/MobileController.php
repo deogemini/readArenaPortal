@@ -35,6 +35,7 @@ use App\Services\BookReviewService;
 use App\Services\ReaderNotificationService;
 use App\Services\QuizAnswerSelection;
 use App\Services\UserActivityRecorder;
+use App\Services\UserAccountDeletionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -122,7 +123,7 @@ class MobileController extends Controller
         return response()->json(['data' => $this->userData($request->user())]);
     }
 
-    public function destroyAccount(Request $request)
+    public function destroyAccount(Request $request, UserAccountDeletionService $accounts)
     {
         $payload = $request->validate(['password' => ['required', 'string']]);
         $user = $request->user();
@@ -130,12 +131,7 @@ class MobileController extends Controller
             throw ValidationException::withMessages(['password' => 'The password is incorrect.']);
         }
 
-        $photoPath = $user->profile_photo_path;
-        $user->tokens()->delete();
-        $user->delete();
-        if ($photoPath) {
-            Storage::disk('public')->delete($photoPath);
-        }
+        $accounts->delete($user);
 
         return response()->json(['message' => 'Account deleted successfully.']);
     }

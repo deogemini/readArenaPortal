@@ -104,6 +104,7 @@
                 New here?
                 <a href="{{ route('register') }}" class="font-semibold text-[#1B0D05] underline underline-offset-4">Create your ReadArena account</a>
             </div>
+            <p class="mt-4 text-xs text-[#786A5D]">Learn how we handle account information in our <a href="{{ route('privacy-policy') }}" class="font-semibold text-[#5c3b08] underline underline-offset-2">Privacy Policy</a>.</p>
         </section>
     </div>
 </div>
