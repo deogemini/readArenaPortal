@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ApiDocsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileController;
 use App\Http\Controllers\Api\PublicBookPerformanceController;
+use App\Http\Controllers\Api\ReaderNoteController;
 use App\Http\Controllers\Api\ReaderIdeaController;
 use App\Http\Controllers\Api\StaffReaderIdeaController;
 use App\Http\Controllers\Api\TranslationController;
@@ -63,6 +64,9 @@ Route::middleware(['auth:sanctum', 'set.locale', 'track.user.activity'])->group(
     Route::get('/books/{book}/content/pdf', [MobileController::class, 'bookContentPdf'])->name('api.books.content.pdf');
     Route::post('/books/{book}/progress', [MobileController::class, 'syncProgress']);
     Route::put('/books/{book}/progress', [MobileController::class, 'syncProgress']);
+    Route::get('/books/{book}/notes', [ReaderNoteController::class, 'index']);
+    Route::put('/books/{book}/notes/{noteId}', [ReaderNoteController::class, 'save']);
+    Route::delete('/books/{book}/notes/{noteId}', [ReaderNoteController::class, 'destroy']);
     Route::get('/reading/progress', [MobileController::class, 'readingProgress']);
     Route::get('/shelf', [MobileController::class, 'shelf']);
     Route::put('/books/{book}/shelf', [MobileController::class, 'updateShelf']);

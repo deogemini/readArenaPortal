@@ -77,7 +77,7 @@
                     <h2 class="mt-1 font-serif text-2xl text-[#1B0D05]">Information we collect</h2>
                     <p class="mt-3 text-sm leading-7 text-[#5e544d]">Account information — name, email address, optional username and phone number, account role, selected language, profile photo, and password credential. Passwords are stored in hashed form, not as readable text.</p>
                     <p class="mt-3 text-sm leading-7 text-[#5e544d]">If you sign in with Google, Google provides the name and email information needed to create or access your ReadArena account.</p>
-                    <p class="mt-3 text-sm leading-7 text-[#5e544d]">Reading and participation — books on your shelf, reading goals and page progress, bookmarks, quiz answers and scores, leaderboard results, duel invitations and results, live-show applications, and reviews, lessons, recommendations, or improvement ideas you submit.</p>
+                    <p class="mt-3 text-sm leading-7 text-[#5e544d]">Reading and participation — books on your shelf, reading goals and page progress, bookmarks and private reading notes, quiz answers and scores, leaderboard results, duel invitations and results, live-show applications, and reviews, lessons, recommendations, or improvement ideas you submit.</p>
                     <p class="mt-3 text-sm leading-7 text-[#5e544d]">Attachments included with an improvement idea are stored so authorized staff can review that submission.</p>
                     <p class="mt-3 text-sm leading-7 text-[#5e544d]">Device and service data — app platform, push-notification token and device label, online or last-seen status, notification preferences, in-app notifications, and essential session and security records. Website or hosting logs may also record request details such as IP address, browser, device, and event time.</p>
                 </section>
@@ -87,7 +87,7 @@
                     <h2 class="mt-1 font-serif text-2xl text-[#1B0D05]">How we use information</h2>
                     <ul class="mt-3 list-disc space-y-2 pl-5 text-sm leading-7 text-[#5e544d]">
                         <li>Provide, maintain, and secure the website, Android application, and APIs.</li>
-                        <li>Run your library, reading progress, goals, quizzes, rankings, duels, live-show participation, and profile.</li>
+                        <li>Run your library, reading progress, private reading notes, goals, quizzes, rankings, duels, live-show participation, and profile.</li>
                         <li>Review submissions, moderate public content, respond to support requests, and improve ReadArena features.</li>
                         <li>Send account, security, quiz, duel, and service notifications by email, SMS, or push when those channels are configured.</li>
                         <li>Prevent fraud, abuse, and technical problems, and meet applicable legal obligations.</li>

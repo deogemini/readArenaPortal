@@ -482,6 +482,39 @@
         }
       }
     },
+    "/api/books/{book}/notes": {
+      "get": {
+        "tags": ["Reading"],
+        "summary": "List the signed-in reader's notes for a published book",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Notes owned by the signed-in reader, ordered by most recently updated" }, "401": { "description": "Unauthenticated" }, "404": { "description": "Book not found or unpublished" } }
+      }
+    },
+    "/api/books/{book}/notes/{noteId}": {
+      "put": {
+        "tags": ["Reading"],
+        "summary": "Create or update a reader note using a stable client note ID",
+        "description": "The note is scoped to the authenticated reader and book. Repeating the request with the same noteId safely replaces that note, which supports retrying offline changes.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "noteId", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 80 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["content", "page_number"], "properties": { "content": { "type": "string", "maxLength": 4000 }, "page_number": { "type": "integer", "minimum": 1 } } } } } },
+        "responses": { "200": { "description": "Existing note updated" }, "201": { "description": "New note created" }, "401": { "description": "Unauthenticated" }, "404": { "description": "Book not found or unpublished" }, "422": { "description": "Invalid content or page number" } }
+      },
+      "delete": {
+        "tags": ["Reading"],
+        "summary": "Delete a note owned by the signed-in reader",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "book", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "noteId", "in": "path", "required": true, "schema": { "type": "string", "maxLength": 80 } }
+        ],
+        "responses": { "200": { "description": "Note deleted" }, "401": { "description": "Unauthenticated" }, "404": { "description": "Book or owned note not found" } }
+      }
+    },
     "/api/account": {
       "delete": {
         "tags": ["Account"], "summary": "Permanently delete the signed-in account", "description": "Requires the account password. All Sanctum tokens and dependent account data are deleted.", "security": [{ "bearerAuth": [] }],

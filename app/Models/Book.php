@@ -90,6 +90,11 @@ class Book extends Model
         return $this->hasMany(Bookmark::class);
     }
 
+    public function readerNotes()
+    {
+        return $this->hasMany(ReaderNote::class);
+    }
+
     public function reviews()
     {
         return $this->hasMany(BookReview::class);

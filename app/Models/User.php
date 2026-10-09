@@ -66,6 +66,11 @@ class User extends Authenticatable implements HasLocalePreference
         return $this->hasMany(Bookmark::class);
     }
 
+    public function readerNotes(): HasMany
+    {
+        return $this->hasMany(ReaderNote::class);
+    }
+
     public function bookReviews(): HasMany
     {
         return $this->hasMany(BookReview::class);
