@@ -33,7 +33,7 @@
                     <p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Live event management</p>
                     <h1 class="mt-2 font-serif text-3xl">Shows</h1>
                 </div>
-                <a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Back to dashboard</a>
+                <div class="flex flex-wrap items-center gap-2"><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Back to dashboard</a>@include('components.portal-logout', ['theme' => 'dark'])</div>
             </div>
         </header>
 

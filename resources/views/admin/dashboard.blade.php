@@ -35,7 +35,7 @@
                     <p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Quiet workbench</p>
                     <h1 class="mt-2 font-serif text-3xl">Platform control center</h1>
                 </div>
-                <a href="/" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">View site</a>
+                <div class="flex flex-wrap items-center gap-2"><a href="/" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">View site</a>@include('components.portal-logout', ['theme' => 'dark'])</div>
             </div>
         </header>
 

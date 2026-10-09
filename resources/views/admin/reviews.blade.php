@@ -8,7 +8,7 @@
 <body class="bg-[#1B0D05] text-[#F4EBD8]">
 @include('components.language-switcher')
 <main class="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-    <header class="flex flex-wrap items-center justify-between gap-4"><div><p class="text-xs uppercase tracking-[0.3em] text-[#D8A83E]">Community safety</p><h1 class="mt-2 font-serif text-3xl">Book reviews</h1></div><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Admin dashboard</a></header>
+    <header class="flex flex-wrap items-center justify-between gap-4"><div><p class="text-xs uppercase tracking-[0.3em] text-[#D8A83E]">Community safety</p><h1 class="mt-2 font-serif text-3xl">Book reviews</h1></div><div class="flex flex-wrap items-center gap-2"><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Admin dashboard</a>@include('components.portal-logout', ['theme' => 'dark'])</div></header>
     @if (session('status'))<div class="mt-5 rounded-xl border border-[#3d261b] bg-[#2B170D] px-4 py-3 text-sm">{{ session('status') }}</div>@endif
     @if ($errors->any())<div class="mt-5 rounded-xl border border-[#7a2e22] bg-[#2B170D] px-4 py-3 text-sm text-[#f8d2c8]">@foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
     <section class="mt-6 space-y-4">

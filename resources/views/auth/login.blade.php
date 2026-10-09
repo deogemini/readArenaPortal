@@ -41,7 +41,7 @@
             <div class="max-w-md">
                 <p class="text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Sign in</p>
                 <h2 class="mt-3 font-serif text-4xl text-[#1B0D05]">Welcome back</h2>
-                <p class="mt-3 text-sm leading-7 text-[#5e544d]">Use your ReadArena account to continue from where you left off.</p>
+                <p class="mt-3 text-sm leading-7 text-[#5e544d]">Use the same email and password as the ReadArena Android app to access your account and saved progress here. If you registered with Google, choose Continue with Google.</p>
             </div>
 
             @if (session('status'))
@@ -104,6 +104,7 @@
                 New here?
                 <a href="{{ route('register') }}" class="font-semibold text-[#1B0D05] underline underline-offset-4">Create your ReadArena account</a>
             </div>
+            <a href="https://play.google.com/store/apps/details?id=tz.co.eportsolutions.readarena" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[#d8c9ad] px-6 py-3 text-sm font-semibold text-[#1B0D05] transition hover:bg-[#F4EBD8]">Download the Android app</a>
             <p class="mt-4 text-xs text-[#786A5D]">Learn how we handle account information in our <a href="{{ route('privacy-policy') }}" class="font-semibold text-[#5c3b08] underline underline-offset-2">Privacy Policy</a>.</p>
         </section>
     </div>

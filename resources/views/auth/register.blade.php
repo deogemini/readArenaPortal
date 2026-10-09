@@ -19,7 +19,7 @@
                 </a>
                 <p class="mt-8 text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Create account</p>
                 <h1 class="mt-3 font-serif text-4xl text-[#1B0D05]">Join the league your way</h1>
-                <p class="mt-4 text-sm leading-7 text-[#5e544d]">Register as a reader to compete and track your progress, or as an author to upload books and draft verified quizzes.</p>
+                <p class="mt-4 text-sm leading-7 text-[#5e544d]">Create one ReadArena account to use on the website and Android app. Register as a reader to compete and track your progress, or as an author to upload books and draft verified quizzes.</p>
             </div>
 
             <form method="POST" action="{{ route('register') }}" class="mt-8 space-y-5">
@@ -91,6 +91,7 @@
                 Already registered?
                 <a href="{{ route('login') }}" class="font-semibold text-[#1B0D05] underline underline-offset-4">Sign in</a>
             </div>
+            <a href="https://play.google.com/store/apps/details?id=tz.co.eportsolutions.readarena" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex w-full items-center justify-center rounded-full border border-[#d8c9ad] px-6 py-3 text-sm font-semibold text-[#1B0D05] transition hover:bg-[#F4EBD8]">Download the Android app</a>
         </section>
 
         <section class="rounded-[32px] border border-[#d8c9ad] bg-[#1B0D05] p-8 text-[#F4EBD8] shadow-xl lg:p-12">

@@ -24,6 +24,7 @@
                 <a href="{{ route('reader.shows') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2">Shows</a>
                 <a href="{{ route('reader.duels') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2">Duels</a>
             </nav>
+            @include('components.portal-logout')
         </div>
     </header>
     <main class="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">

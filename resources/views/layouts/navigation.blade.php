@@ -50,6 +50,9 @@
                         </form>
                     </x-slot>
                 </x-dropdown>
+                <div class="ms-3">
+                    @include('components.portal-logout')
+                </div>
             </div>
 
             <!-- Hamburger -->

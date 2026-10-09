@@ -20,6 +20,7 @@
                 <a href="{{ route('reader.library') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2">Library</a>
                 <a href="{{ route('reader.duels') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-[#FBF6EA]">Duels</a>
             </nav>
+            @include('components.portal-logout')
         </div>
     </header>
     <main class="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">

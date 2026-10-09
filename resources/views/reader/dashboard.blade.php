@@ -10,10 +10,11 @@
 @include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div>
                 <p class="text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Reader lounge</p>
                 <h1 class="font-serif text-2xl text-[#1B0D05]">Welcome back, {{ auth()->user()->name }}</h1>
+                <p class="mt-1 text-sm text-[#786A5D]">{{ auth()->user()->email }}</p>
             </div>
             <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                 <a href="{{ route('reader.dashboard') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]">Dashboard</a>
@@ -23,7 +24,8 @@
                 <a href="{{ route('reader.recommendations') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Recommendations</a>
                 <a href="{{ route('reader.shows') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Shows</a>
                 <a href="{{ route('reader.duels') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Duels</a>
-                <a href="/logout" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
+                <a href="https://play.google.com/store/apps/details?id=tz.co.eportsolutions.readarena" target="_blank" rel="noopener noreferrer" class="rounded-full border border-[#B98A2C] px-4 py-2 text-sm font-semibold text-[#5c3b08]">Download Android app</a>
+                <a href="/logout" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Log out</a>
                 <form id="logout-form" action="/logout" method="POST" class="hidden">
                     @csrf
                 </form>
@@ -42,39 +44,31 @@
             <section class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Continue reading</p>
-                        <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">Tonight’s shelf</h2>
+                        <p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Your account</p>
+                        <h2 class="mt-2 font-serif text-3xl text-[#1B0D05]">Continue reading</h2>
                     </div>
                     <a href="/reader/library" class="text-sm font-semibold text-[#1B0D05]">Browse all</a>
                 </div>
                 <div class="mt-6 grid gap-4 md:grid-cols-2">
-                    @foreach($books as $book)
+                    @forelse($continueReading as $progress)
+                        @php($book = $progress->book)
                         <div class="rounded-[22px] border border-[#d8c9ad] bg-[#F4EBD8] p-4">
                             <div class="flex gap-4">
                                 <img src="{{ $book->cover_image ?? 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=300&q=80' }}" alt="{{ $book->title }}" class="h-24 w-20 rounded-[16px] object-cover">
                                 <div class="flex-1">
-                                    <p class="text-xs uppercase tracking-[0.3em] text-[#B98A2C]">{{ $book->genres->first()?->name ?? 'Classic' }}</p>
                                     <h3 class="mt-1 font-serif text-xl text-[#1B0D05]">{{ $book->title }}</h3>
                                     <p class="mt-1 text-sm text-[#786A5D]">{{ $book->authors->first()?->name ?? 'Unknown author' }}</p>
-                                    <p class="mt-2 text-xs text-[#786A5D]">{{ (int) $book->published_quizzes_count }} quizzes · {{ (int) $book->quiz_readers_count }} readers · {{ (int) $book->quiz_attempts_count }} attempts</p>
-                                    <p class="mt-1 text-xs text-[#786A5D]">Average score: {{ $book->quiz_average_score !== null ? number_format((float) $book->quiz_average_score, 1).'%' : '—' }}</p>
-                                    <div class="mt-3 flex items-center gap-2 text-sm">
-                                        @if($book->quizzes_count > 0)
-                                            <span class="rounded-full bg-[#1B0D05] px-3 py-1 text-[#FBF6EA]">Quiz ready</span>
-                                        @else
-                                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1 text-[#786A5D]">Quiz coming soon</span>
-                                        @endif
-                                        @if(in_array($book->id, $verifiedBookIds))
-                                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel unlocked</span>
-                                        @else
-                                            <span class="rounded-full border border-[#d8c9ad] px-3 py-1">Duel locked</span>
-                                        @endif
-                                    </div>
-                                    <a href="{{ route('reader.books.show', $book->slug) }}" class="mt-3 inline-flex rounded-full border border-[#d8c9ad] px-3 py-1 text-xs font-semibold text-[#1B0D05]">Read & attempt quiz</a>
+                                    <p class="mt-2 text-xs text-[#786A5D]">Last page read: {{ number_format((int) $progress->last_page_read) }}{{ $book->page_count ? ' of '.number_format((int) $book->page_count) : '' }}</p>
+                                    <a href="{{ route('reader.books.show', $book->slug) }}" class="mt-3 inline-flex rounded-full border border-[#d8c9ad] px-3 py-1 text-xs font-semibold text-[#1B0D05]">Continue book</a>
                                 </div>
                             </div>
                         </div>
-                    @endforeach
+                    @empty
+                        <div class="rounded-[22px] border border-dashed border-[#d8c9ad] p-5 text-sm text-[#786A5D] md:col-span-2">
+                            You have no saved reading progress yet. Browse the library and open a book to see it here.
+                            <a href="{{ route('reader.library') }}" class="mt-3 inline-flex rounded-full bg-[#1B0D05] px-4 py-2 font-semibold text-[#FBF6EA]">Browse the library</a>
+                        </div>
+                    @endforelse
                 </div>
             </section>
 
@@ -162,6 +156,47 @@
                     @endforelse
                 </div>
                 <a href="{{ route('leaderboard') }}?period=weekly" class="mt-4 inline-block text-sm font-semibold text-[#1B0D05]">View leaderboard</a>
+            </div>
+        </section>
+
+        <section class="mt-8 grid gap-6 lg:grid-cols-2">
+            <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div><p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Your saved books</p><h2 class="mt-2 font-serif text-2xl text-[#1B0D05]">Reading shelf</h2></div>
+                    <a href="{{ route('reader.library') }}" class="text-sm font-semibold text-[#1B0D05]">Open library</a>
+                </div>
+                <div class="mt-4 space-y-3">
+                    @forelse($shelfBooks as $shelfBook)
+                        <div class="flex items-center justify-between gap-3 rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-3">
+                            <div class="min-w-0">
+                                <h3 class="truncate font-semibold text-[#1B0D05]">{{ $shelfBook->book?->title ?? 'Book' }}</h3>
+                                <p class="mt-1 text-xs text-[#786A5D]">{{ $shelfBook->book?->authors->first()?->name ?? 'Unknown author' }}</p>
+                            </div>
+                            <span class="shrink-0 rounded-full border border-[#d8c9ad] px-3 py-1 text-xs">{{ str($shelfBook->status)->replace('_', ' ')->title() }}</span>
+                        </div>
+                    @empty
+                        <p class="rounded-[18px] border border-dashed border-[#d8c9ad] p-4 text-sm text-[#786A5D]">Your reading shelf is empty. Add books from the library in the app or website.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div><p class="text-sm uppercase tracking-[0.3em] text-[#B98A2C]">Your competitions</p><h2 class="mt-2 font-serif text-2xl text-[#1B0D05]">Recent duels</h2></div>
+                    <a href="{{ route('reader.duels') }}" class="text-sm font-semibold text-[#1B0D05]">View all</a>
+                </div>
+                <div class="mt-4 space-y-3">
+                    @forelse($recentDuels as $duel)
+                        @php($isOpponent = (int) $duel->opponent_id === (int) auth()->id())
+                        <div class="rounded-[18px] border border-[#d8c9ad] bg-[#F4EBD8] p-3">
+                            <h3 class="font-semibold text-[#1B0D05]">{{ $duel->book?->title ?? 'Book duel' }}</h3>
+                            <p class="mt-1 text-sm text-[#786A5D]">{{ $isOpponent ? 'Challenge from ' : 'Challenge to ' }}{{ $isOpponent ? ($duel->challenger?->name ?? 'Reader') : ($duel->opponent?->name ?? 'Reader') }}</p>
+                            <span class="mt-2 inline-flex rounded-full border border-[#d8c9ad] px-3 py-1 text-xs uppercase tracking-wide">{{ $duel->status }}</span>
+                        </div>
+                    @empty
+                        <p class="rounded-[18px] border border-dashed border-[#d8c9ad] p-4 text-sm text-[#786A5D]">No duels yet. Your invitations and results will appear here.</p>
+                    @endforelse
+                </div>
             </div>
         </section>
     </main>

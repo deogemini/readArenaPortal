@@ -21,7 +21,7 @@
                 <a href="/library" class="hover:text-[#1B0D05]">Library</a>
                 <a href="/pro-arena" class="hover:text-[#1B0D05]">Pro Arena</a>
             </nav>
-            <a href="/register" class="rounded-full border border-[#1B0D05] bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA] shadow-sm">Get the App</a>
+            <a href="https://play.google.com/store/apps/details?id=tz.co.eportsolutions.readarena" target="_blank" rel="noopener noreferrer" class="rounded-full border border-[#1B0D05] bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA] shadow-sm">Get the App</a>
         </div>
     </header>
 

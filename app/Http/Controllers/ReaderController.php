@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use App\Models\Bookmark;
 use App\Models\BookReview;
+use App\Models\Duel;
 use App\Models\Lesson;
 use App\Models\LiveShow;
 use App\Models\Quiz;
@@ -33,28 +34,36 @@ class ReaderController extends Controller
     public function dashboard()
     {
         $readerId = auth()->id();
-        $completedQuizzesCount = QuizAttempt::query()
-            ->where('user_id', $readerId)
-            ->where('passed', true)
-            ->whereHas('quiz', fn ($quiz) => $quiz->where('status', 'published')->whereHas('book', fn ($book) => $book->where('status', 'published')))
-            ->distinct('quiz_id')
-            ->count('quiz_id');
         $verifiedBooks = app(DuelService::class)->verifiedBooks(auth()->user());
 
         return view('reader.dashboard', [
-            'books' => Book::query()->withQuizPerformanceStats()->with(['authors', 'genres'])
-                ->withCount(['quizzes' => fn ($quizzes) => $quizzes->where('status', 'published')])
-                ->where('status', 'published')->latest()->take(6)->get(),
+            'continueReading' => ReadingProgress::query()
+                ->where('user_id', $readerId)
+                ->whereHas('book', fn ($query) => $query->where('status', 'published'))
+                ->with(['book:id,title,slug,cover_image,page_count', 'book.authors:id,name'])
+                ->orderByDesc('last_opened_at')
+                ->limit(6)
+                ->get(),
+            'shelfBooks' => ReaderShelf::query()
+                ->where('user_id', $readerId)
+                ->whereHas('book', fn ($query) => $query->where('status', 'published'))
+                ->with(['book:id,title,slug,cover_image', 'book.authors:id,name'])
+                ->latest()
+                ->limit(6)
+                ->get(),
+            'recentDuels' => Duel::query()
+                ->where(fn ($query) => $query->where('challenger_id', $readerId)->orWhere('opponent_id', $readerId))
+                ->with(['book:id,title,slug', 'challenger:id,name', 'opponent:id,name'])
+                ->latest()
+                ->limit(3)
+                ->get(),
             'goals' => ReadingGoal::where('user_id', $readerId)->latest()->take(3)->get(),
             'shows' => LiveShow::where('status', 'scheduled')->where('start_at', '>=', now())->orderBy('start_at')->take(3)->get(),
             'lessons' => Lesson::where('user_id', $readerId)->latest()->take(3)->get(),
             'recommendations' => Recommendation::where('user_id', $readerId)->latest()->take(3)->get(),
             'totalPoints' => app(LeaderboardService::class)->pointsForUser($readerId),
             'quizAttemptsCount' => QuizAttempt::where('user_id', $readerId)->count(),
-            'completedQuizzesCount' => $completedQuizzesCount,
             'verifiedBooksCount' => $verifiedBooks->count(),
-            'verifiedBookIds' => $verifiedBooks->modelKeys(),
-            'duelsUnlocked' => $completedQuizzesCount > 0,
             'leaderboard' => app(LeaderboardService::class)->rankings('weekly', 3),
         ]);
     }

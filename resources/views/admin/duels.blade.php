@@ -24,7 +24,7 @@
     </aside>
     <main class="lg:ml-72">
         <header class="border-b border-[#3d261b] bg-[#1B0D05] px-6 py-6 lg:px-8">
-            <div class="flex items-center justify-between"><div><p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Competition control</p><h1 class="mt-2 font-serif text-3xl">Duel invitations</h1></div><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Back to dashboard</a></div>
+            <div class="flex items-center justify-between"><div><p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Competition control</p><h1 class="mt-2 font-serif text-3xl">Duel invitations</h1></div><div class="flex flex-wrap items-center gap-2"><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Back to dashboard</a>@include('components.portal-logout', ['theme' => 'dark'])</div></div>
         </header>
         <section class="px-6 py-8 lg:px-8">
             <div class="mx-auto max-w-7xl">

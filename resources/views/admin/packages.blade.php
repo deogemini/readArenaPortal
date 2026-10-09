@@ -33,7 +33,7 @@
                     <p class="text-sm uppercase tracking-[0.3em] text-[#D8A83E]">Monetization setup</p>
                     <h1 class="mt-2 font-serif text-3xl">Global Arena Packages</h1>
                 </div>
-                <a href="/admin" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Back to dashboard</a>
+                <div class="flex flex-wrap items-center gap-2"><a href="/admin" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Back to dashboard</a>@include('components.portal-logout', ['theme' => 'dark'])</div>
             </div>
         </header>
 

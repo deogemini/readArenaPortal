@@ -18,6 +18,7 @@
                 <a href="{{ route('reader.lessons') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2">Lessons</a>
                 <a href="{{ route('reader.recommendations') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-[#FBF6EA]">Recommendations</a>
             </nav>
+            @include('components.portal-logout')
         </div>
     </header>
     <main class="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">

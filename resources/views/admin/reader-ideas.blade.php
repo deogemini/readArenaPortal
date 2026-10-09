@@ -10,7 +10,7 @@
 <main class="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
     <header class="flex flex-wrap items-center justify-between gap-4">
         <div><p class="text-xs uppercase tracking-[0.3em] text-[#D8A83E]">Reader feedback</p><h1 class="mt-2 font-serif text-3xl">Improvement ideas</h1><p class="mt-2 max-w-2xl text-sm text-[#d8c9ad]">Read suggestions submitted from the Android app and update their review status.</p></div>
-        <a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Admin dashboard</a>
+        <div class="flex flex-wrap items-center gap-2"><a href="{{ route('admin.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Admin dashboard</a>@include('components.portal-logout', ['theme' => 'dark'])</div>
     </header>
 
     @if (session('status'))<div class="mt-5 rounded-xl border border-[#3d261b] bg-[#2B170D] px-4 py-3 text-sm">{{ session('status') }}</div>@endif
