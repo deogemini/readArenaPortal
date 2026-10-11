@@ -813,7 +813,7 @@ class MobileController extends Controller
     {
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'goal_type' => ['required', Rule::in(['books', 'pages'])],
+            'goal_type' => ['required', Rule::in(['books', 'pages', 'quizzes'])],
             'book_id' => ['nullable', 'required_if:goal_type,pages', 'integer', 'exists:books,id'],
             'target_value' => ['required', 'integer', 'min:1'],
             'start_date' => ['required', 'date'],
@@ -839,6 +839,7 @@ class MobileController extends Controller
             'status' => 'active',
         ]);
         $shelves->refreshBookGoals($request->user());
+        $this->refreshQuizGoalsForUser((int) $request->user()->id, Carbon::now());
         $goal->refresh();
 
         return response()->json([
@@ -860,7 +861,7 @@ class MobileController extends Controller
         abort_unless((int) $goal->user_id === (int) $request->user()->id, 404);
         $payload = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'goal_type' => ['required', Rule::in(['books', 'pages'])],
+            'goal_type' => ['required', Rule::in(['books', 'pages', 'quizzes'])],
             'book_id' => ['nullable', 'required_if:goal_type,pages', 'integer', 'exists:books,id'],
             'target_value' => ['required', 'integer', 'min:1'],
             'start_date' => ['required', 'date'],
@@ -876,12 +877,21 @@ class MobileController extends Controller
             'goal_type' => $payload['goal_type'],
             'book_id' => $payload['goal_type'] === 'pages' ? (int) $payload['book_id'] : null,
             'target_value' => (int) $payload['target_value'],
-            'current_value' => min((int) $goal->current_value, (int) $payload['target_value']),
+            'current_value' => $payload['goal_type'] === 'quizzes'
+                ? 0
+                : ($goal->goal_type === $payload['goal_type']
+                    ? min((int) $goal->current_value, (int) $payload['target_value'])
+                    : 0),
             'start_date' => $payload['start_date'],
             'end_date' => $payload['end_date'],
-            'status' => $goal->current_value >= $payload['target_value'] ? 'achieved' : 'active',
+            'status' => $payload['goal_type'] === 'quizzes'
+                ? 'active'
+                : ($goal->goal_type === $payload['goal_type'] && $goal->current_value >= $payload['target_value']
+                    ? 'achieved'
+                    : 'active'),
         ]);
         $shelves->refreshBookGoals($request->user());
+        $this->refreshQuizGoalsForUser((int) $request->user()->id, Carbon::now());
 
         return response()->json([
             'message' => 'Reading goal updated successfully.',
@@ -1521,6 +1531,10 @@ class MobileController extends Controller
                     ...$evaluation['responses'][(int) $question->id],
                 ]);
             }
+            $quizGoalProgress = $this->refreshQuizGoalsForUser(
+                (int) $request->user()->id,
+                Carbon::now(),
+            );
 
             return [
                 'score' => $evaluation['needs_review'] ? null : $percentScore,
@@ -1529,6 +1543,7 @@ class MobileController extends Controller
                 'attempt_id' => $attempt->id,
                 'attempts_used' => $attemptsCount + 1,
                 'reward_points' => $passed ? max(0, $percentScore - $previousBest) : 0,
+                'quiz_goal_progress' => $quizGoalProgress,
             ];
         });
 
@@ -1552,6 +1567,50 @@ class MobileController extends Controller
                 : 'Quiz submitted successfully.',
             'data' => $result,
         ]);
+    }
+
+    private function refreshQuizGoalsForUser(int $userId, Carbon $today): array
+    {
+        $date = $today->toDateString();
+        $goals = ReadingGoal::query()
+            ->where('user_id', $userId)
+            ->where('goal_type', 'quizzes')
+            ->where('status', 'active')
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('end_date', '>=', $date)
+            ->get();
+
+        $progress = [];
+        foreach ($goals as $goal) {
+            $quizCount = QuizAttempt::query()
+                ->where('user_id', $userId)
+                ->whereBetween('created_at', [
+                    Carbon::parse($goal->start_date)->startOfDay(),
+                    Carbon::parse($goal->end_date)->endOfDay(),
+                ])
+                ->distinct()
+                ->count('quiz_id');
+            $currentValue = min((int) $goal->target_value, $quizCount);
+            $status = $currentValue >= (int) $goal->target_value
+                ? 'achieved'
+                : 'active';
+
+            if ((int) $goal->current_value !== $currentValue || $goal->status !== $status) {
+                $goal->update([
+                    'current_value' => $currentValue,
+                    'status' => $status,
+                ]);
+            }
+
+            $progress[] = [
+                'goal_id' => (string) $goal->id,
+                'current_value' => $currentValue,
+                'target_value' => (int) $goal->target_value,
+                'status' => $status,
+            ];
+        }
+
+        return $progress;
     }
 
     private function userData(User $user): array
