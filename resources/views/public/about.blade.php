@@ -10,15 +10,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D]">
 @include('components.language-switcher')
 <div class="min-h-screen">
-    <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <a href="{{ route('home') }}" class="font-serif text-2xl text-[#1B0D05]">ReadArena</a>
-            <nav class="flex items-center gap-5 text-sm text-[#786A5D]">
-                <a href="{{ route('library') }}" class="hover:text-[#1B0D05]">Library</a>
-                <a href="{{ route('pro-arena') }}" class="hover:text-[#1B0D05]">Pro Arena</a>
-            </nav>
-        </div>
-    </header>
+    <x-public-navigation />
 
     <main class="mx-auto max-w-5xl px-6 py-16 lg:px-8 lg:py-24">
         <section class="max-w-3xl">

@@ -9,9 +9,10 @@
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
 @include('components.language-switcher')
+<x-public-navigation />
 <main class="mx-auto min-h-screen max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
     <header class="flex flex-wrap items-center justify-between gap-4">
-        <div><a href="{{ route('home') }}" class="text-sm font-semibold uppercase tracking-[0.25em] text-[#B98A2C]">ReadArena</a><h1 class="mt-2 font-serif text-4xl text-[#1B0D05]">Reader leaderboard</h1></div>
+        <h1 class="font-serif text-4xl text-[#1B0D05]">Reader leaderboard</h1>
         <a href="{{ route('library') }}" class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Explore library</a>
     </header>
     <section class="mt-8 rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm sm:p-8">

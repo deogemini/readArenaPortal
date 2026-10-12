@@ -11,17 +11,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D] antialiased">
 @include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.16),_transparent_38%)]">
-    <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/95">
-        <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <a href="{{ route('home') }}" class="font-serif text-2xl font-semibold text-[#1B0D05]">ReadArena</a>
-            <nav aria-label="Main navigation" class="flex flex-wrap items-center justify-end gap-2 text-sm">
-                <a href="{{ route('home') }}" class="rounded-full px-3 py-2 text-[#5e544d] transition hover:bg-[#f1e7d4] hover:text-[#1B0D05]">Home</a>
-                <a href="{{ route('library') }}" class="rounded-full px-3 py-2 text-[#5e544d] transition hover:bg-[#f1e7d4] hover:text-[#1B0D05]">Library</a>
-                <a href="{{ route('about') }}" class="rounded-full px-3 py-2 text-[#5e544d] transition hover:bg-[#f1e7d4] hover:text-[#1B0D05]">About</a>
-                <a href="{{ auth()->check() ? route('dashboard') : route('register') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-[#FBF6EA] transition hover:bg-[#432919]">{{ auth()->check() ? 'Your portal' : 'Join' }}</a>
-            </nav>
-        </div>
-    </header>
+    <x-public-navigation />
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <a href="{{ route('home') }}" class="inline-flex items-center gap-2 text-sm font-medium text-[#786A5D] transition hover:text-[#1B0D05]"><span aria-hidden="true">←</span> Back to ReadArena</a>

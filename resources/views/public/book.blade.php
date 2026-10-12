@@ -10,12 +10,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D]">
 @include('components.language-switcher')
 <div class="min-h-screen">
-    <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <a href="/library" class="font-serif text-2xl text-[#1B0D05]">ReadArena</a>
-            <a href="{{ auth()->check() ? route('dashboard') : route('register') }}" class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">{{ auth()->check() ? 'Your portal' : 'Join the duel' }}</a>
-        </div>
-    </header>
+    <x-public-navigation />
     <main class="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
         <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
             <img src="{{ $book->cover_image ?? 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80' }}" alt="{{ $book->title }}" class="h-80 w-full rounded-[20px] object-cover">

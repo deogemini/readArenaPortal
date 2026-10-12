@@ -15,21 +15,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D]">
 @include('components.language-switcher')
 <div class="min-h-screen">
-    <header class="sticky top-0 z-20 border-b border-[#d8c9ad] bg-[#FBF6EA]/90 backdrop-blur">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <a href="/" class="flex items-center gap-3 text-xl font-semibold tracking-[0.2em] uppercase">
-                <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
-                <span class="text-[#1B0D05]">ReadArena</span>
-            </a>
-            <nav class="hidden items-center gap-8 text-sm font-medium text-[#786A5D] md:flex">
-                <a href="#features" class="hover:text-[#1B0D05]">Features</a>
-                <a href="#activity" class="hover:text-[#1B0D05]">Activity</a>
-                <a href="/library" class="hover:text-[#1B0D05]">Library</a>
-                <a href="/pro-arena" class="hover:text-[#1B0D05]">Pro Arena</a>
-            </nav>
-            <a href="https://play.google.com/store/apps/details?id=tz.co.eportsolutions.readarena" target="_blank" rel="noopener noreferrer" class="rounded-full border border-[#1B0D05] bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA] shadow-sm">Get the App</a>
-        </div>
-    </header>
+    <x-public-navigation />
 
     <main>
         <section class="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-24">
@@ -113,7 +99,7 @@
             </div>
         </section>
 
-        <section id="features" class="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+        <section id="features" class="mx-auto max-w-7xl scroll-mt-24 px-6 py-24 lg:px-8">
             <div class="mb-10 max-w-2xl">
                 <p class="text-sm font-semibold uppercase tracking-[0.35em] text-[#B98A2C]">Six tools. One reading habit.</p>
                 <h2 class="mt-3 font-serif text-4xl text-[#1B0D05]">A premium reading league built for depth, not noise.</h2>
@@ -136,7 +122,7 @@
             </div>
         </section>
 
-        <section id="activity" class="bg-[#1B0D05] py-24 text-[#F4EBD8]">
+        <section id="activity" class="scroll-mt-24 bg-[#1B0D05] py-24 text-[#F4EBD8]">
             <div class="mx-auto max-w-7xl px-6 lg:px-8">
                 <div class="grid gap-10 lg:grid-cols-[1fr_0.8fr]">
                     <div>
