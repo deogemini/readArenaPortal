@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    @include('components.site-icons')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReadArena | Read the book. Prove it. Then duel.</title>
+    <meta name="description" content="Read deeply, verify what you learn, and compete fairly with readers around the world in ReadArena.">
+    <meta property="og:title" content="ReadArena | Read deeply. Compete fairly.">
+    <meta property="og:description" content="Discover books, pass comprehension quizzes, and challenge readers in the ReadArena league.">
+    <meta property="og:image" content="{{ asset('assets/readarena/feature-graphic-1024x500.png') }}">
+    <meta name="twitter:card" content="summary_large_image">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F4EBD8] text-[#24150D]">
@@ -12,7 +18,7 @@
     <header class="sticky top-0 z-20 border-b border-[#d8c9ad] bg-[#FBF6EA]/90 backdrop-blur">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
             <a href="/" class="flex items-center gap-3 text-xl font-semibold tracking-[0.2em] uppercase">
-                <span class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#1B0D05] text-sm text-[#F4EBD8]">BD</span>
+                <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
                 <span class="text-[#1B0D05]">ReadArena</span>
             </a>
             <nav class="hidden items-center gap-8 text-sm font-medium text-[#786A5D] md:flex">
@@ -56,31 +62,53 @@
                 </div>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-                @foreach ([['title'=>'Discover books','label'=>'01 — Discover'],['title'=>'Read in-app','label'=>'02 — Read In-App'],['title'=>'Prove you read it','label'=>'03 — Prove You Read It'],['title'=>'Duel readers','label'=>'04 — Duel Readers']] as $card)
-                    <div class="rounded-[24px] border border-[#d8c9ad] bg-[#FBF6EA] p-5 shadow-sm">
-                        <div class="mb-5 h-36 rounded-[18px] bg-[#1B0D05] p-4 text-[#F4EBD8]">
-                            <div class="flex h-full items-center justify-center rounded-[14px] border border-[#d8c9ad]/70 text-center text-sm font-medium">
-                                {{ $card['title'] }}
-                            </div>
-                        </div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#B98A2C]">{{ $card['label'] }}</p>
+            <div class="overflow-hidden rounded-[28px] border border-[#d8c9ad] bg-[#1B0D05] p-2 shadow-xl">
+                <img
+                    src="{{ asset('assets/readarena/feature-graphic-1024x500.png') }}"
+                    srcset="{{ asset('assets/readarena/feature-graphic-1024x500.png') }} 1024w, {{ asset('assets/readarena/feature-graphic-2048x1000.png') }} 2048w"
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    alt="ReadArena: Read deeply. Compete fairly. An open book lights the way."
+                    fetchpriority="high"
+                    class="aspect-[2/1] w-full rounded-[22px] object-cover"
+                >
+                <div class="flex items-center gap-4 p-4 sm:p-5">
+                    <img src="{{ asset('assets/readarena/app-icon-512.png') }}" alt="" class="h-14 w-14 rounded-xl ring-1 ring-white/20">
+                    <div>
+                        <p class="font-serif text-xl text-[#F4EBD8]">ReadArena mobile</p>
+                        <p class="mt-1 text-sm text-[#d8c9ad]">Read deeply. Compete fairly.</p>
                     </div>
-                @endforeach
+                </div>
             </div>
         </section>
 
-        <section class="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                @foreach ([['title'=>'Apply to the live show','label'=>'05 — Apply to the Live Show'],['title'=>'Set your reading goals','label'=>'06 — Set Your Reading Goals'],['title'=>'Write what you learned','label'=>'07 — Write What You Learned'],['title'=>'Recommend the book','label'=>'08 — Recommend the Book']] as $card)
-                    <div class="rounded-[24px] border border-[#d8c9ad] bg-[#FBF6EA] p-5">
-                        <div class="mb-5 h-28 rounded-[18px] bg-[#2B170D] p-4 text-[#F4EBD8]">
-                            <div class="flex h-full items-center justify-center rounded-[14px] border border-[#d8c9ad]/70 text-center text-sm">
-                                {{ $card['title'] }}
-                            </div>
-                        </div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#B98A2C]">{{ $card['label'] }}</p>
-                    </div>
+        <section id="app-preview" class="mx-auto max-w-7xl px-6 py-16 lg:px-8">
+            <div class="mb-8 max-w-2xl">
+                <p class="text-sm font-semibold uppercase tracking-[0.35em] text-[#B98A2C]">ReadArena on Android</p>
+                <h2 class="mt-3 font-serif text-4xl text-[#1B0D05]">See how the reading journey works.</h2>
+                <p class="mt-3 text-base leading-7 text-[#5e544d]">Explore the app screens for discovering books, proving what you read, and joining the competition.</p>
+            </div>
+            @php($appScreenshots = [
+                ['file' => '01-onboarding.png', 'title' => 'Start the journey', 'description' => 'Find a book and follow each step.'],
+                ['file' => '02-quiz-journey.png', 'title' => 'Take the quiz', 'description' => 'Verify your reading and earn points.'],
+                ['file' => '03-competition-journey.png', 'title' => 'Compete and grow', 'description' => 'Challenge readers and build your rank.'],
+                ['file' => '04-welcome.png', 'title' => 'Join the league', 'description' => 'Keep your reading progress together.'],
+                ['file' => '05-sign-in.png', 'title' => 'Sign in', 'description' => 'Use your ReadArena account on mobile.'],
+                ['file' => '06-create-account.png', 'title' => 'Create an account', 'description' => 'Join as a reader in a few steps.'],
+            ])
+            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+                @foreach ($appScreenshots as $screenshot)
+                    <figure class="rounded-[24px] border border-[#d8c9ad] bg-[#FBF6EA] p-3 shadow-sm">
+                        <img
+                            src="{{ asset('assets/readarena/'.$screenshot['file']) }}"
+                            alt="{{ $screenshot['title'] }} screen from the ReadArena Android app"
+                            loading="lazy"
+                            class="mx-auto w-full rounded-[18px] border border-[#e4d9c4] bg-[#F4EBD8] object-contain"
+                        >
+                        <figcaption class="px-2 pb-2 pt-4">
+                            <h3 class="font-serif text-xl text-[#1B0D05]">{{ $screenshot['title'] }}</h3>
+                            <p class="mt-1 text-sm leading-6 text-[#786A5D]">{{ $screenshot['description'] }}</p>
+                        </figcaption>
+                    </figure>
                 @endforeach
             </div>
         </section>
@@ -142,7 +170,7 @@
         <div class="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] lg:px-8">
             <div>
                 <div class="flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#1B0D05] text-sm text-[#F4EBD8]">BD</span>
+                    <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
                     <span class="text-[#1B0D05]">ReadArena</span>
                 </div>
                 <p class="mt-4 max-w-sm text-sm leading-7 text-[#5e544d]">A premium digital reading league for verified readers, live discussions, and literary competition.</p>

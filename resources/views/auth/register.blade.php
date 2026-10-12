@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    @include('components.site-icons')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -14,7 +15,7 @@
         <section class="rounded-[32px] border border-[#d8c9ad] bg-[#FBF6EA] p-8 shadow-lg lg:p-10">
             <div class="max-w-md">
                 <a href="/" class="inline-flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em] text-[#1B0D05]">
-                    <span class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#1B0D05] text-sm text-[#F4EBD8]">BD</span>
+                    <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
                     <span>ReadArena</span>
                 </a>
                 <p class="mt-8 text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Create account</p>

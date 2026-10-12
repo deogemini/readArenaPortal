@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    @include('components.site-icons')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -13,7 +14,7 @@
     <div class="mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
         <section class="rounded-[32px] border border-[#d8c9ad] bg-[#1B0D05] p-8 text-[#F4EBD8] shadow-xl lg:p-12">
             <a href="/" class="inline-flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
-                <span class="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8c9ad] bg-[#F4EBD8] text-sm text-[#1B0D05]">BD</span>
+                <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
                 <span>ReadArena</span>
             </a>
             <p class="mt-10 text-sm uppercase tracking-[0.35em] text-[#D8A83E]">Reader league access</p>
