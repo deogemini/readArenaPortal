@@ -53,8 +53,9 @@ class GoogleAuthController extends Controller
             ]);
         }
 
-        Auth::login($user, true);
+        Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put('_auth_last_activity', now()->timestamp);
         $request->session()->put('locale', $user->locale ?: 'en');
         app()->setLocale($user->locale ?: 'en');
         app(UserActivityRecorder::class)->record($user, $isNewUser ? 'registered' : 'signed_in', 'web_portal');

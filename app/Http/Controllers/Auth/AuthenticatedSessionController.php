@@ -28,6 +28,7 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        $request->session()->put('_auth_last_activity', now()->timestamp);
         $request->session()->put('locale', $request->user()->locale ?: 'en');
         app()->setLocale($request->user()->locale ?: 'en');
         app(UserActivityRecorder::class)->record($request->user(), 'signed_in', 'web_portal');

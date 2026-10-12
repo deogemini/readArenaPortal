@@ -37,7 +37,7 @@
                     ReadArena turns finishing a novel into a tournament. Read inside the app, pass the comprehension quiz, and challenge readers around the world.
                 </p>
                 <div class="mt-8 flex flex-wrap gap-4">
-                    <a href="/register" class="rounded-full bg-[#1B0D05] px-6 py-3 text-sm font-semibold text-[#FBF6EA]">Join ReadArena</a>
+                    <a href="{{ auth()->check() ? route('dashboard') : route('register') }}" class="rounded-full bg-[#1B0D05] px-6 py-3 text-sm font-semibold text-[#FBF6EA]">{{ auth()->check() ? 'Continue to your portal' : 'Join ReadArena' }}</a>
                     <a href="/library" class="rounded-full border border-[#d8c9ad] bg-[#FBF6EA] px-6 py-3 text-sm font-semibold text-[#1B0D05]">Explore the Library</a>
                 </div>
                 <div class="mt-10 grid gap-4 sm:grid-cols-3">
@@ -174,7 +174,7 @@
                 <ul class="mt-4 space-y-2 text-sm text-[#5e544d]">
                     <li><a href="/library">Library</a></li>
                     <li><a href="/about">About</a></li>
-                    <li><a href="/register">Join</a></li>
+                    <li><a href="{{ auth()->check() ? route('dashboard') : route('register') }}">{{ auth()->check() ? 'Your portal' : 'Join' }}</a></li>
                 </ul>
             </div>
             <div>

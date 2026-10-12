@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -31,10 +32,13 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if (is_string($email = $request->input('email'))) {
+            $request->merge(['email' => Str::lower(trim($email))]);
+        }
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'role' => ['nullable', 'in:reader,author'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -42,19 +46,17 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->string('role')->toString() ?: 'reader',
+            'role' => 'reader',
             'locale' => in_array($request->session()->get('locale'), ['en', 'sw'], true) ? $request->session()->get('locale') : 'en',
         ]);
 
         event(new Registered($user));
 
         Auth::login($user);
+        $request->session()->regenerate();
+        $request->session()->put('_auth_last_activity', now()->timestamp);
         app(UserActivityRecorder::class)->record($user, 'registered', 'web_portal');
 
-        $route = $user->isAuthor()
-            ? route('author.dashboard', absolute: false)
-            : route('reader.dashboard', absolute: false);
-
-        return redirect($route);
+        return redirect()->route('reader.dashboard', absolute: false);
     }
 }

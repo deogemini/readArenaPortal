@@ -69,11 +69,6 @@
                     @endif
                 </div>
 
-                <label for="remember_me" class="flex items-center gap-3 text-sm text-[#5e544d]">
-                    <input id="remember_me" type="checkbox" class="rounded border-[#d8c9ad] text-[#1B0D05] focus:ring-[#B98A2C]" name="remember">
-                    <span>Keep me signed in</span>
-                </label>
-
                 <div class="flex flex-col gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
                     @if (Route::has('password.request'))
                         <a class="text-sm font-semibold text-[#5e544d] underline underline-offset-4 hover:text-[#1B0D05]" href="{{ route('password.request') }}">

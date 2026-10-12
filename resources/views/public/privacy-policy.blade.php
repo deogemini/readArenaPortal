@@ -17,7 +17,7 @@
                 <a href="{{ route('home') }}" class="rounded-full px-3 py-2 text-[#5e544d] transition hover:bg-[#f1e7d4] hover:text-[#1B0D05]">Home</a>
                 <a href="{{ route('library') }}" class="rounded-full px-3 py-2 text-[#5e544d] transition hover:bg-[#f1e7d4] hover:text-[#1B0D05]">Library</a>
                 <a href="{{ route('about') }}" class="rounded-full px-3 py-2 text-[#5e544d] transition hover:bg-[#f1e7d4] hover:text-[#1B0D05]">About</a>
-                <a href="{{ route('register') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-[#FBF6EA] transition hover:bg-[#432919]">Join</a>
+                <a href="{{ auth()->check() ? route('dashboard') : route('register') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-[#FBF6EA] transition hover:bg-[#432919]">{{ auth()->check() ? 'Your portal' : 'Join' }}</a>
             </nav>
         </div>
     </header>

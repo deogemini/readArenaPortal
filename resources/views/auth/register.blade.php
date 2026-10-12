@@ -18,8 +18,8 @@
                     <span>ReadArena</span>
                 </a>
                 <p class="mt-8 text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Create account</p>
-                <h1 class="mt-3 font-serif text-4xl text-[#1B0D05]">Join the league your way</h1>
-                <p class="mt-4 text-sm leading-7 text-[#5e544d]">Create one ReadArena account to use on the website and Android app. Register as a reader to compete and track your progress, or as an author to upload books and draft verified quizzes.</p>
+                <h1 class="mt-3 font-serif text-4xl text-[#1B0D05]">Join the reader league</h1>
+                <p class="mt-4 text-sm leading-7 text-[#5e544d]">Create one reader account to use on the ReadArena website and Android app. Sign in to either with the same email and password.</p>
             </div>
 
             <form method="POST" action="{{ route('register') }}" class="mt-8 space-y-5">
@@ -38,17 +38,6 @@
                     <input id="email" class="mt-2 block w-full rounded-[18px] border border-[#d8c9ad] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#B98A2C]" type="email" name="email" value="{{ old('email') }}" required autocomplete="username">
                     @if ($errors->get('email'))
                         <p class="mt-2 text-sm text-[#a43c2c]">{{ $errors->first('email') }}</p>
-                    @endif
-                </div>
-
-                <div>
-                    <label for="role" class="text-sm font-semibold uppercase tracking-[0.2em] text-[#1B0D05]">I am joining as</label>
-                    <select id="role" name="role" class="mt-2 block w-full rounded-[18px] border border-[#d8c9ad] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#B98A2C]" required>
-                        <option value="reader" @selected(old('role', 'reader') === 'reader')>Reader</option>
-                        <option value="author" @selected(old('role') === 'author')>Writer / Author</option>
-                    </select>
-                    @if ($errors->get('role'))
-                        <p class="mt-2 text-sm text-[#a43c2c]">{{ $errors->first('role') }}</p>
                     @endif
                 </div>
 
@@ -103,8 +92,8 @@
                     <p class="mt-2 text-sm leading-7 text-[#e5d7bf]">Join duels, set reading goals, attend live shows, and build your reputation through verified reading.</p>
                 </div>
                 <div class="rounded-[22px] border border-[#3d261b] bg-[#2B170D] p-5">
-                    <h3 class="font-semibold">Author Path</h3>
-                    <p class="mt-2 text-sm leading-7 text-[#e5d7bf]">Upload titles, create questions and answers, and prepare quiz experiences for readers around the world.</p>
+                    <h3 class="font-semibold">One account</h3>
+                    <p class="mt-2 text-sm leading-7 text-[#e5d7bf]">Use the same reader login on the website and Android app to keep your reading experience connected.</p>
                 </div>
                 <div class="rounded-[22px] border border-[#3d261b] bg-[#2B170D] p-5">
                     <h3 class="font-semibold">Pro Arena</h3>
