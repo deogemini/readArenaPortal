@@ -9,17 +9,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D]">
 @include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
-    <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
-        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div><p class="text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Reader lounge</p><h1 class="font-serif text-2xl text-[#1B0D05]">Live shows</h1></div>
-            <nav class="flex flex-wrap gap-2 text-sm">
-                <a href="{{ route('reader.dashboard') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2">Dashboard</a>
-                <a href="{{ route('reader.library') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2">Library</a>
-                <a href="{{ route('reader.shows') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-[#FBF6EA]">Shows</a>
-            </nav>
-            @include('components.portal-logout')
-        </div>
-    </header>
+    @include('reader.partials.navigation')
     <main class="mx-auto max-w-7xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
         @if (session('status'))<div class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] px-4 py-3 text-sm">{{ session('status') }}</div>@endif
         @if ($errors->any())<div class="rounded-xl border border-[#c17b6f] bg-[#FBF6EA] px-4 py-3 text-sm text-[#7a2e22]"><ul class="list-disc pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif

@@ -9,24 +9,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D] antialiased">
 @include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.16),_transparent_38%)]">
-    <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/95">
-        <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-            <a href="{{ route('reader.dashboard') }}" class="group w-fit">
-                <p class="text-xs font-semibold uppercase tracking-[0.32em] text-[#B98A2C]">Reader lounge</p>
-                <p class="mt-1 font-serif text-xl text-[#1B0D05] group-hover:text-[#8a5d13]">Welcome back, {{ auth()->user()->name }}</p>
-            </a>
-            <nav aria-label="Reader navigation" class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-wrap lg:justify-end lg:overflow-visible lg:pb-0">
-                <a href="{{ route('reader.dashboard') }}" class="shrink-0 rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm transition hover:border-[#B98A2C] hover:bg-white">Dashboard</a>
-                <a href="{{ route('reader.library') }}" aria-current="page" class="shrink-0 rounded-full border border-[#1B0D05] bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]">Library</a>
-                <a href="{{ route('reader.goals') }}" class="shrink-0 rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm transition hover:border-[#B98A2C] hover:bg-white">Goals</a>
-                <a href="{{ route('reader.lessons') }}" class="shrink-0 rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm transition hover:border-[#B98A2C] hover:bg-white">Lessons</a>
-                <a href="{{ route('reader.shows') }}" class="shrink-0 rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm transition hover:border-[#B98A2C] hover:bg-white">Shows</a>
-                <a href="{{ route('reader.duels') }}" class="shrink-0 rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm transition hover:border-[#B98A2C] hover:bg-white">Duels</a>
-                <a href="/logout" class="shrink-0 rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA] transition hover:bg-[#432919]" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
-                <form id="logout-form" action="/logout" method="POST" class="hidden">@csrf</form>
-            </nav>
-        </div>
-    </header>
+    @include('reader.partials.navigation')
 
     @php
         $resumePage = max(1, (int) $progress->last_page_read);

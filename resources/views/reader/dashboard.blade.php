@@ -9,29 +9,7 @@
 <body class="bg-[#F4EBD8] text-[#24150D]">
 @include('components.language-switcher')
 <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
-    <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
-        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div>
-                <p class="text-sm uppercase tracking-[0.35em] text-[#B98A2C]">Reader lounge</p>
-                <h1 class="font-serif text-2xl text-[#1B0D05]">Welcome back, {{ auth()->user()->name }}</h1>
-                <p class="mt-1 text-sm text-[#786A5D]">{{ auth()->user()->email }}</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                <a href="{{ route('reader.dashboard') }}" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]">Dashboard</a>
-                <a href="{{ route('reader.library') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Library</a>
-                <a href="{{ route('reader.goals') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Goals</a>
-                <a href="{{ route('reader.lessons') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Lessons</a>
-                <a href="{{ route('reader.recommendations') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Recommendations</a>
-                <a href="{{ route('reader.shows') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Shows</a>
-                <a href="{{ route('reader.duels') }}" class="rounded-full border border-[#d8c9ad] bg-[#F4EBD8] px-4 py-2 text-sm">Duels</a>
-                <a href="https://play.google.com/store/apps/details?id=tz.co.eportsolutions.readarena" target="_blank" rel="noopener noreferrer" class="rounded-full border border-[#B98A2C] px-4 py-2 text-sm font-semibold text-[#5c3b08]">Download Android app</a>
-                <a href="/logout" class="rounded-full bg-[#1B0D05] px-4 py-2 text-sm text-[#FBF6EA]" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Log out</a>
-                <form id="logout-form" action="/logout" method="POST" class="hidden">
-                    @csrf
-                </form>
-            </div>
-        </div>
-    </header>
+    @include('reader.partials.navigation')
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         @if (session('warning'))
