@@ -57,6 +57,6 @@ class RegisteredUserController extends Controller
         $request->session()->put('_auth_last_activity', now()->timestamp);
         app(UserActivityRecorder::class)->record($user, 'registered', 'web_portal');
 
-        return redirect()->route('reader.dashboard', absolute: false);
+        return redirect(route('reader.dashboard', absolute: false));
     }
 }
