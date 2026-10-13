@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\RewardService;
 use App\Services\UserActivityRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class GoogleAuthController extends Controller
 
         $email = $googleUser->getEmail();
 
-        if (!$email) {
+        if (! $email) {
             return redirect()->route('login')->withErrors([
                 'email' => __('Google account did not provide an email address.'),
             ]);
@@ -40,7 +41,7 @@ class GoogleAuthController extends Controller
         $user = User::where('email', $email)->first();
         $isNewUser = ! $user;
 
-        if (!$user) {
+        if (! $user) {
             $name = $googleUser->getName() ?: Str::before($email, '@');
 
             $user = User::create([
@@ -59,6 +60,11 @@ class GoogleAuthController extends Controller
         $request->session()->put('locale', $user->locale ?: 'en');
         app()->setLocale($user->locale ?: 'en');
         app(UserActivityRecorder::class)->record($user, $isNewUser ? 'registered' : 'signed_in', 'web_portal');
+        if ($isNewUser) {
+            app(RewardService::class)->awardAccountCreated($user);
+        } else {
+            app(RewardService::class)->awardDailyLogin($user);
+        }
 
         $defaultRoute = $user->isAdmin()
             ? route('admin.dashboard', absolute: false)

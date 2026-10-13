@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\RewardService;
 use App\Services\UserActivityRecorder;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -56,6 +57,7 @@ class RegisteredUserController extends Controller
         $request->session()->regenerate();
         $request->session()->put('_auth_last_activity', now()->timestamp);
         app(UserActivityRecorder::class)->record($user, 'registered', 'web_portal');
+        app(RewardService::class)->awardAccountCreated($user);
 
         return redirect(route('reader.dashboard', absolute: false));
     }

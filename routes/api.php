@@ -4,8 +4,8 @@ use App\Http\Controllers\Api\ApiDocsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileController;
 use App\Http\Controllers\Api\PublicBookPerformanceController;
-use App\Http\Controllers\Api\ReaderNoteController;
 use App\Http\Controllers\Api\ReaderIdeaController;
+use App\Http\Controllers\Api\ReaderNoteController;
 use App\Http\Controllers\Api\StaffReaderIdeaController;
 use App\Http\Controllers\Api\TranslationController;
 use Illuminate\Support\Facades\Route;
@@ -115,4 +115,5 @@ Route::middleware(['auth:sanctum', 'set.locale', 'track.user.activity'])->group(
 
     Route::get('/quizzes/{quiz}', [MobileController::class, 'showQuiz']);
     Route::post('/quizzes/{quiz}/submit', [MobileController::class, 'submitQuiz']);
+    Route::post('/quizzes/{quiz}/abandon', [MobileController::class, 'abandonQuiz'])->middleware('throttle:20,1');
 });

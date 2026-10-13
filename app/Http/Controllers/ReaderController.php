@@ -10,20 +10,22 @@ use App\Models\Lesson;
 use App\Models\LiveShow;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
+use App\Models\ReaderShelf;
 use App\Models\ReadingGoal;
 use App\Models\ReadingProgress;
-use App\Models\ReaderShelf;
 use App\Models\Recommendation;
 use App\Models\ShowApplication;
-use App\Services\ReaderContentService;
-use App\Services\DuelService;
-use App\Services\LeaderboardService;
-use App\Services\ShowParticipationService;
+use App\Models\ShowRsvp;
 use App\Services\BookContentService;
-use App\Services\ReaderShelfService;
 use App\Services\BookmarkService;
 use App\Services\BookReviewService;
+use App\Services\DuelService;
+use App\Services\LeaderboardService;
 use App\Services\QuizAnswerSelection;
+use App\Services\ReaderContentService;
+use App\Services\ReaderShelfService;
+use App\Services\RewardService;
+use App\Services\ShowParticipationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -318,7 +320,7 @@ class ReaderController extends Controller
 
         $quiz->load(['book', 'questions.answers']);
 
-        if (!$quiz->book || $quiz->book->status !== 'published') {
+        if (! $quiz->book || $quiz->book->status !== 'published') {
             abort(404);
         }
 
@@ -346,7 +348,13 @@ class ReaderController extends Controller
 
         $percentScore = $totalPoints > 0 ? (int) round(($score / $totalPoints) * 100) : 0;
 
-        DB::transaction(function () use ($quiz, $readerId, $evaluation, $percentScore): void {
+        $rewardPoints = DB::transaction(function () use ($quiz, $readerId, $evaluation, $percentScore): int {
+            $previousBest = (int) QuizAttempt::query()
+                ->where('quiz_id', $quiz->id)
+                ->where('user_id', $readerId)
+                ->where('review_status', 'graded')
+                ->where('passed', true)
+                ->max('score');
             $attempt = QuizAttempt::create([
                 'quiz_id' => $quiz->id,
                 'user_id' => $readerId,
@@ -361,11 +369,27 @@ class ReaderController extends Controller
                     ...$evaluation['responses'][(int) $question->id],
                 ]);
             }
+
+            $rewards = app(RewardService::class);
+            $earned = $rewards->awardQuizCompletion($attempt);
+            if (! $evaluation['needs_review'] && $attempt->passed) {
+                $earned += $rewards->awardQuizScoreImprovement(
+                    $attempt,
+                    max(0, $percentScore - $previousBest),
+                );
+            }
+
+            return $earned;
         });
 
-        return back()->with('status', $evaluation['needs_review']
+        $message = $evaluation['needs_review']
             ? 'Quiz submitted. Your written response is waiting for review.'
-            : 'Quiz submitted. You scored '.$percentScore.'%.');
+            : 'Quiz submitted. You scored '.$percentScore.'%.';
+        if ($rewardPoints > 0) {
+            $message .= ' You earned '.$rewardPoints.' points.';
+        }
+
+        return back()->with('status', $message);
     }
 
     public function goals()
@@ -543,7 +567,7 @@ class ReaderController extends Controller
         $opponentsByBook = $verifiedBooks->mapWithKeys(fn (Book $book) => [
             $book->id => $duels->verifiedOpponents($user, $book),
         ]);
-        $records = \App\Models\Duel::query()
+        $records = Duel::query()
             ->where(fn ($query) => $query->where('challenger_id', $user->id)->orWhere('opponent_id', $user->id))
             ->with(['book:id,title,slug', 'challenger:id,name', 'opponent:id,name'])
             ->latest()
@@ -567,7 +591,7 @@ class ReaderController extends Controller
         return redirect()->route('reader.duels')->with('status', 'Duel invitation sent.');
     }
 
-    public function respondToDuel(Request $request, \App\Models\Duel $duel, DuelService $duels): RedirectResponse
+    public function respondToDuel(Request $request, Duel $duel, DuelService $duels): RedirectResponse
     {
         $payload = $request->validate(['action' => ['required', 'in:accept,reject']]);
         $duels->respond($request->user(), $duel, $payload['action']);
@@ -575,7 +599,7 @@ class ReaderController extends Controller
         return redirect()->route('reader.duels')->with('status', 'Duel invitation '.$payload['action'].'ed.');
     }
 
-    public function cancelDuel(Request $request, \App\Models\Duel $duel, DuelService $duels): RedirectResponse
+    public function cancelDuel(Request $request, Duel $duel, DuelService $duels): RedirectResponse
     {
         $duels->cancel($request->user(), $duel);
 
@@ -592,7 +616,7 @@ class ReaderController extends Controller
             ->withCount(['rsvps', 'applications'])
             ->orderBy('start_at')
             ->get();
-        $rsvpIds = \App\Models\ShowRsvp::query()->where('user_id', $readerId)->whereIn('live_show_id', $shows->pluck('id'))->pluck('live_show_id')->all();
+        $rsvpIds = ShowRsvp::query()->where('user_id', $readerId)->whereIn('live_show_id', $shows->pluck('id'))->pluck('live_show_id')->all();
         $applications = ShowApplication::query()
             ->where('user_id', $readerId)
             ->whereIn('live_show_id', $shows->pluck('id'))

@@ -16,16 +16,17 @@ use App\Models\Publisher;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\QuizQuestion;
-use App\Models\Recommendation;
 use App\Models\ReaderIdea;
-use App\Models\SmsGatewaySetting;
+use App\Models\Recommendation;
 use App\Models\ShowApplication;
+use App\Models\SmsGatewaySetting;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Models\UserActivityEvent;
 use App\Services\QuizAnswerOptions;
 use App\Services\QuizQuestionDefinition;
 use App\Services\ReaderNotificationService;
+use App\Services\RewardService;
 use App\Services\ShowParticipationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -35,6 +36,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
 {
@@ -620,7 +622,7 @@ class AdminController extends Controller
         }
         $payload = $request->validate($rules);
 
-        DB::transaction(function () use ($attempt, $writtenResponses, $payload): void {
+        $rewardPoints = DB::transaction(function () use ($attempt, $writtenResponses, $payload): int {
             $lockedAttempt = QuizAttempt::query()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
             abort_unless($lockedAttempt->review_status === 'pending_review', 404);
 
@@ -635,12 +637,24 @@ class AdminController extends Controller
             $possiblePoints = (int) $lockedAttempt->quiz->questions->sum('points');
             $earnedPoints = (int) $lockedAttempt->responses->sum('points_awarded');
             $score = $possiblePoints > 0 ? (int) round(($earnedPoints / $possiblePoints) * 100) : 0;
+            $previousBest = (int) QuizAttempt::query()
+                ->where('quiz_id', $lockedAttempt->quiz_id)
+                ->where('user_id', $lockedAttempt->user_id)
+                ->whereKeyNot($lockedAttempt->id)
+                ->where('review_status', 'graded')
+                ->where('passed', true)
+                ->max('score');
 
             $lockedAttempt->update([
                 'score' => $score,
                 'passed' => $score >= (int) $lockedAttempt->quiz->pass_mark,
                 'review_status' => 'graded',
             ]);
+
+            return app(RewardService::class)->awardQuizScoreImprovement(
+                $lockedAttempt->fresh(['quiz', 'user']),
+                $lockedAttempt->passed ? max(0, $score - $previousBest) : 0,
+            );
         });
 
         $attempt->refresh()->load(['quiz', 'user']);
@@ -653,7 +667,7 @@ class AdminController extends Controller
             ['quiz_id' => $attempt->quiz_id, 'attempt_id' => $attempt->id, 'score' => $attempt->score, 'passed' => $attempt->passed],
         );
 
-        return redirect()->route('admin.quizzes')->with('status', 'Quiz attempt reviewed and score finalized.');
+        return redirect()->route('admin.quizzes')->with('status', 'Quiz attempt reviewed and score finalized. '.$rewardPoints.' points awarded.');
     }
 
     public function duels()
@@ -842,12 +856,12 @@ class AdminController extends Controller
             ? $payload['client_secret']
             : $settings?->client_secret;
         if (($payload['is_enabled'] ?? false) && blank($clientSecret)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'client_secret' => 'Enter the SMS client secret before enabling the gateway.',
             ]);
         }
 
-        if (!$settings) {
+        if (! $settings) {
             SmsGatewaySetting::create([
                 'base_url' => $payload['base_url'],
                 'client_id' => $payload['client_id'],
@@ -902,7 +916,7 @@ class AdminController extends Controller
                 || ! preg_match('/^[a-z0-9][a-z0-9-]{4,28}[a-z0-9]$/', (string) ($serviceAccount['project_id'] ?? ''))
                 || ! $privateKey
             ) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
+                throw ValidationException::withMessages([
                     'firebase_service_account_json' => 'Paste a valid Firebase service-account JSON file with a project ID, client email, and valid private key.',
                 ]);
             }
@@ -911,7 +925,7 @@ class AdminController extends Controller
         $pushEnabled = (bool) ($payload['push_enabled'] ?? false);
         $hasServiceAccount = $serviceAccountJson !== '' || ($settings && $settings->firebase_service_account_json && ! ($payload['clear_firebase_credentials'] ?? false));
         if ($pushEnabled && ! $hasServiceAccount) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'firebase_service_account_json' => 'Add Firebase service-account JSON before enabling push notifications.',
             ]);
         }
@@ -922,27 +936,27 @@ class AdminController extends Controller
                 ? $payload['smtp_password']
                 : ($settings?->smtp_password ?? config('mail.mailers.smtp.password')));
         if (($payload['email_enabled'] ?? false) && filled($payload['smtp_username'] ?? null) && blank($smtpPassword)) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'smtp_password' => 'Enter the SMTP password before enabling email delivery.',
             ]);
         }
 
         $values = [
-                'email_enabled' => (bool) ($payload['email_enabled'] ?? false),
-                'smtp_host' => $payload['smtp_host'] ?? $settings?->smtp_host ?? config('mail.mailers.smtp.host'),
-                'smtp_port' => $payload['smtp_port'] ?? $settings?->smtp_port ?? config('mail.mailers.smtp.port'),
-                'smtp_username' => $payload['smtp_username'] ?? $settings?->smtp_username ?? config('mail.mailers.smtp.username'),
-                'smtp_password' => $smtpPassword,
-                'smtp_encryption' => $payload['smtp_encryption'],
-                'mail_from_address' => $payload['mail_from_address'] ?? $settings?->mail_from_address ?? config('mail.from.address'),
-                'mail_from_name' => $payload['mail_from_name'] ?? $settings?->mail_from_name ?? config('mail.from.name'),
-                'push_enabled' => $pushEnabled,
-                'firebase_project_id' => ($payload['clear_firebase_credentials'] ?? false)
-                    ? null
-                    : ($payload['firebase_project_id'] ?? $serviceAccount['project_id'] ?? $settings?->firebase_project_id),
-                'firebase_service_account_json' => ($payload['clear_firebase_credentials'] ?? false)
-                    ? null
-                    : ($serviceAccountJson !== '' ? $serviceAccountJson : $settings?->firebase_service_account_json),
+            'email_enabled' => (bool) ($payload['email_enabled'] ?? false),
+            'smtp_host' => $payload['smtp_host'] ?? $settings?->smtp_host ?? config('mail.mailers.smtp.host'),
+            'smtp_port' => $payload['smtp_port'] ?? $settings?->smtp_port ?? config('mail.mailers.smtp.port'),
+            'smtp_username' => $payload['smtp_username'] ?? $settings?->smtp_username ?? config('mail.mailers.smtp.username'),
+            'smtp_password' => $smtpPassword,
+            'smtp_encryption' => $payload['smtp_encryption'],
+            'mail_from_address' => $payload['mail_from_address'] ?? $settings?->mail_from_address ?? config('mail.from.address'),
+            'mail_from_name' => $payload['mail_from_name'] ?? $settings?->mail_from_name ?? config('mail.from.name'),
+            'push_enabled' => $pushEnabled,
+            'firebase_project_id' => ($payload['clear_firebase_credentials'] ?? false)
+                ? null
+                : ($payload['firebase_project_id'] ?? $serviceAccount['project_id'] ?? $settings?->firebase_project_id),
+            'firebase_service_account_json' => ($payload['clear_firebase_credentials'] ?? false)
+                ? null
+                : ($serviceAccountJson !== '' ? $serviceAccountJson : $settings?->firebase_service_account_json),
         ];
 
         if ($settings) {

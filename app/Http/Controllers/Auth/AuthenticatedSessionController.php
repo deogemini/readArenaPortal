@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\RewardService;
 use App\Services\UserActivityRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,7 @@ class AuthenticatedSessionController extends Controller
         $request->session()->put('locale', $request->user()->locale ?: 'en');
         app()->setLocale($request->user()->locale ?: 'en');
         app(UserActivityRecorder::class)->record($request->user(), 'signed_in', 'web_portal');
+        app(RewardService::class)->awardDailyLogin($request->user());
 
         $defaultRoute = auth()->user()->isAdmin()
             ? route('admin.dashboard', absolute: false)

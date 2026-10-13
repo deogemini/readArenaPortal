@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\LeaderboardService;
+use App\Services\RewardService;
 use App\Services\UserActivityRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -39,6 +42,7 @@ class AuthController extends Controller
         ]);
 
         app(UserActivityRecorder::class)->record($user, 'registered', 'android_app');
+        app(RewardService::class)->awardAccountCreated($user);
 
         return $this->tokenResponse($user, 'Registration successful', $validated['device_name'] ?? 'android-app', 201);
     }
@@ -62,6 +66,7 @@ class AuthController extends Controller
         }
 
         app(UserActivityRecorder::class)->record($user, 'signed_in', 'android_app');
+        app(RewardService::class)->awardDailyLogin($user);
 
         return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
     }
@@ -103,6 +108,11 @@ class AuthController extends Controller
         }
 
         app(UserActivityRecorder::class)->record($user, $isNewUser ? 'registered' : 'signed_in', 'android_app');
+        if ($isNewUser) {
+            app(RewardService::class)->awardAccountCreated($user);
+        } else {
+            app(RewardService::class)->awardDailyLogin($user);
+        }
 
         return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
     }
@@ -153,7 +163,7 @@ class AuthController extends Controller
     private function tokenResponse(User $user, string $message, string $deviceName, int $status = 200)
     {
         return response()->json([
-            'message' => \Illuminate\Support\Facades\Lang::get($message, [], $user->locale ?: 'en'),
+            'message' => Lang::get($message, [], $user->locale ?: 'en'),
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -162,6 +172,7 @@ class AuthController extends Controller
                 'phone_number' => $user->phone_number,
                 'role' => $user->role,
                 'locale' => $user->locale ?: 'en',
+                'points' => app(LeaderboardService::class)->pointsForUser($user->id),
             ],
             'token' => $user->createToken($deviceName)->plainTextToken,
             'token_type' => 'Bearer',

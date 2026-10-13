@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Book;
 use App\Models\Duel;
 use App\Models\QuizAttempt;
+use App\Models\ReaderShelf;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -12,6 +13,49 @@ use Illuminate\Validation\ValidationException;
 class DuelService
 {
     private const ACTIVE_STATUSES = ['pending', 'accepted', 'scheduled', 'waiting', 'live', 'paused'];
+
+    public function duelBooks()
+    {
+        return Book::query()
+            ->where('status', 'published')
+            ->whereHas('quizzes', fn ($quizzes) => $quizzes
+                ->where('status', 'published')
+                ->whereHas('questions')
+                ->whereDoesntHave('questions', fn ($questions) => $questions->where('question_type', 'written_response')))
+            ->orderBy('title')
+            ->get(['id', 'title', 'slug', 'cover_image', 'status']);
+    }
+
+    public function onlineOpponents(User $user)
+    {
+        return User::query()
+            ->where('role', 'reader')
+            ->whereKeyNot($user->id)
+            ->where('last_seen_at', '>=', now()->subMinutes(2))
+            ->orderBy('name')
+            ->get(['id', 'name', 'username', 'profile_photo_path', 'last_seen_at']);
+    }
+
+    public function duelAccess(User $user): array
+    {
+        $hasCompletedBook = ReaderShelf::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'completed')
+            ->exists();
+        $hasPassedQuiz = $this->hasPassedQuiz($user);
+        $used = $this->usedDuelCount($user);
+        $limit = max(0, (int) config('gamification.starter_duel_limit', 3));
+        $unlocked = $hasCompletedBook || $hasPassedQuiz;
+
+        return [
+            'unlimited_duels_unlocked' => $unlocked,
+            'can_start_duel' => $unlocked || $used < $limit,
+            'starter_duel_limit' => $limit,
+            'starter_duels_used' => $used,
+            'starter_duels_remaining' => $unlocked ? null : max(0, $limit - $used),
+            'unlock_reason' => $hasCompletedBook ? 'completed_book' : ($hasPassedQuiz ? 'passed_quiz' : null),
+        ];
+    }
 
     public function verifiedBooks(User $user)
     {
@@ -60,18 +104,25 @@ class DuelService
                 ->lockForUpdate()
                 ->get();
 
+            $challenger = $lockedUsers->firstWhere('id', $challenger->id);
             $opponent = $lockedUsers->firstWhere('id', $opponentId);
             if (! $opponent || ! $opponent->isReader()) {
                 throw ValidationException::withMessages(['opponent_id' => 'Choose an active reader.']);
             }
 
-            $book = Book::query()->whereKey($bookId)->where('status', 'published')->first();
-            if (! $book) {
-                throw ValidationException::withMessages(['book_id' => 'Choose a published book.']);
-            }
+            $this->assertCanStartDuel($challenger);
 
-            $this->assertVerified($challenger, $book);
-            $this->assertVerified($opponent, $book);
+            $book = Book::query()
+                ->whereKey($bookId)
+                ->where('status', 'published')
+                ->whereHas('quizzes', fn ($quizzes) => $quizzes
+                    ->where('status', 'published')
+                    ->whereHas('questions')
+                    ->whereDoesntHave('questions', fn ($questions) => $questions->where('question_type', 'written_response')))
+                ->first();
+            if (! $book) {
+                throw ValidationException::withMessages(['book_id' => 'Choose a published book with a playable quiz.']);
+            }
 
             $existing = Duel::query()
                 ->where('book_id', $book->id)
@@ -106,10 +157,24 @@ class DuelService
         }
 
         return DB::transaction(function () use ($user, $duel, $action) {
+            $lockedUsers = User::query()
+                ->whereIn('id', [$duel->challenger_id, $duel->opponent_id])
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            $lockedUser = $lockedUsers->firstWhere('id', $user->id);
+            if (! $lockedUser) {
+                abort(404);
+            }
+
             $locked = Duel::query()->whereKey($duel->id)->lockForUpdate()->firstOrFail();
             abort_unless((int) $locked->opponent_id === (int) $user->id, 403);
             if ($locked->status !== 'pending') {
                 throw ValidationException::withMessages(['duel' => 'Only pending invitations can be answered.']);
+            }
+
+            if ($action === 'accept') {
+                $this->assertCanStartDuel($lockedUser);
             }
 
             $locked->update(['status' => $action === 'accept' ? 'accepted' : 'rejected']);
@@ -133,6 +198,42 @@ class DuelService
 
             return $locked->fresh(['book', 'challenger', 'opponent']);
         });
+    }
+
+    private function hasPassedQuiz(User $user): bool
+    {
+        return QuizAttempt::query()
+            ->where('user_id', $user->id)
+            ->where('review_status', 'graded')
+            ->where('passed', true)
+            ->whereHas('quiz', fn ($quizzes) => $quizzes
+                ->where('status', 'published')
+                ->whereHas('book', fn ($books) => $books->where('status', 'published')))
+            ->exists();
+    }
+
+    private function usedDuelCount(User $user): int
+    {
+        return Duel::query()
+            ->where(fn ($participants) => $participants
+                ->where('challenger_id', $user->id)
+                ->orWhere('opponent_id', $user->id))
+            ->where(fn ($status) => $status
+                ->whereIn('status', ['accepted', 'scheduled', 'waiting', 'live', 'paused', 'completed'])
+                ->orWhere(fn ($pending) => $pending
+                    ->where('status', 'pending')
+                    ->where('challenger_id', $user->id)))
+            ->count();
+    }
+
+    private function assertCanStartDuel(User $user): void
+    {
+        $access = $this->duelAccess($user);
+        if (! $access['can_start_duel']) {
+            throw ValidationException::withMessages([
+                'duel' => 'You have used all three starter duels. Complete one book or pass a quiz to unlock more duels.',
+            ]);
+        }
     }
 
     public function isVerified(User $user, Book $book): bool

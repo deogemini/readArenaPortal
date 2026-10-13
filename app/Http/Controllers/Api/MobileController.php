@@ -10,32 +10,33 @@ use App\Models\Duel;
 use App\Models\DuelAttempt;
 use App\Models\Lesson;
 use App\Models\LiveShow;
+use App\Models\PointTransaction;
+use App\Models\PushDeviceToken;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
-use App\Models\ReadingGoal;
-use App\Models\ReadingProgress;
-use App\Models\ReaderShelf;
-use App\Models\Recommendation;
+use App\Models\ReaderLikeRequest;
 use App\Models\ReaderNotification;
 use App\Models\ReaderNotificationPreference;
-use App\Models\ReaderLikeRequest;
-use App\Models\PushDeviceToken;
+use App\Models\ReaderShelf;
+use App\Models\ReadingGoal;
+use App\Models\ReadingProgress;
+use App\Models\Recommendation;
 use App\Models\ShowApplication;
-use App\Models\ShowRsvp;
 use App\Models\User;
 use App\Models\UserActivityEvent;
-use App\Services\ReaderContentService;
-use App\Services\DuelService;
-use App\Services\LeaderboardService;
-use App\Services\ShowParticipationService;
 use App\Services\BookContentService;
-use App\Services\ReaderShelfService;
 use App\Services\BookmarkService;
 use App\Services\BookReviewService;
-use App\Services\ReaderNotificationService;
+use App\Services\DuelService;
+use App\Services\LeaderboardService;
 use App\Services\QuizAnswerSelection;
-use App\Services\UserActivityRecorder;
+use App\Services\ReaderContentService;
+use App\Services\ReaderNotificationService;
+use App\Services\ReaderShelfService;
+use App\Services\RewardService;
+use App\Services\ShowParticipationService;
 use App\Services\UserAccountDeletionService;
+use App\Services\UserActivityRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -56,7 +57,9 @@ class MobileController extends Controller
             ->whereHas('quiz', fn ($quiz) => $quiz->where('status', 'published')->whereHas('book', fn ($book) => $book->where('status', 'published')))
             ->distinct()
             ->count('quiz_id');
-        $verifiedBooksCount = app(DuelService::class)->verifiedBooks($user)->count();
+        $duelService = app(DuelService::class);
+        $verifiedBooksCount = $duelService->verifiedBooks($user)->count();
+        $duelAccess = $duelService->duelAccess($user);
 
         return response()->json([
             'data' => [
@@ -66,7 +69,10 @@ class MobileController extends Controller
                     'quiz_attempts_count' => (int) (clone $attempts)->count(),
                     'completed_quizzes_count' => $completedQuizzes,
                     'verified_books_count' => $verifiedBooksCount,
-                    'duels_unlocked' => $verifiedBooksCount > 0,
+                    'duels_unlocked' => $duelAccess['unlimited_duels_unlocked'],
+                    'starter_duel_limit' => $duelAccess['starter_duel_limit'],
+                    'starter_duels_used' => $duelAccess['starter_duels_used'],
+                    'starter_duels_remaining' => $duelAccess['starter_duels_remaining'],
                 ],
                 'continue_reading' => ReadingProgress::query()
                     ->where('user_id', $user->id)
@@ -170,51 +176,56 @@ class MobileController extends Controller
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
-        $attempts = QuizAttempt::query()
-            ->with('quiz:id,title,book_id')
-            ->where('user_id', $request->user()->id)
-            ->where('review_status', 'graded')
-            ->where('passed', true)
-            ->whereHas('quiz', fn ($quizzes) => $quizzes->where('status', 'published')->whereHas('book', fn ($books) => $books->where('status', 'published')))
-            ->orderBy('id')
-            ->get();
-
-        $bestScores = [];
-        $balance = 0;
-        $history = [];
-        foreach ($attempts as $attempt) {
-            $quizId = (int) $attempt->quiz_id;
-            $oldBest = $bestScores[$quizId] ?? 0;
-            $pointsEarned = max(0, (int) $attempt->score - $oldBest);
-            if ($pointsEarned === 0) {
-                continue;
-            }
-            $bestScores[$quizId] = max($oldBest, (int) $attempt->score);
-            $balance += $pointsEarned;
-            $history[] = [
-                'attempt_id' => $attempt->id,
-                'quiz_id' => $quizId,
-                'quiz_title' => $attempt->quiz?->title,
-                'score' => (int) $attempt->score,
-                'points_earned' => $pointsEarned,
-                'total_points' => $balance,
-                'created_at' => $attempt->created_at?->toIso8601String(),
-            ];
-        }
-        $total = count($history);
         $perPage = (int) ($filters['per_page'] ?? 20);
         $page = (int) ($filters['page'] ?? 1);
-        $items = collect($history)->reverse()->slice(($page - 1) * $perPage, $perPage)->values();
+        $transactions = PointTransaction::query()
+            ->with('quizAttempt.quiz:id,title')
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate($perPage, ['*'], 'page', $page);
+        $balance = $leaderboard->pointsForUser($request->user()->id);
+        $first = $transactions->getCollection()->first();
+        $newerPoints = $first
+            ? PointTransaction::query()
+                ->where('user_id', $request->user()->id)
+                ->where(fn ($query) => $query
+                    ->where('created_at', '>', $first->created_at)
+                    ->orWhere(fn ($sameTime) => $sameTime
+                        ->where('created_at', $first->created_at)
+                        ->where('id', '>', $first->id)))
+                ->sum('points')
+            : 0;
+        $balanceAtItem = $balance - (int) $newerPoints;
+        $items = $transactions->getCollection()->map(function (PointTransaction $transaction) use (&$balanceAtItem): array {
+            $metadata = $transaction->metadata ?? [];
+            $quiz = $transaction->quizAttempt?->quiz;
+            $points = (int) $transaction->points;
+            $row = [
+                'attempt_id' => (string) ($transaction->quiz_attempt_id ?? 'reward-'.$transaction->id),
+                'transaction_id' => $transaction->id,
+                'quiz_id' => $quiz?->id,
+                'quiz_title' => $metadata['quiz_title'] ?? $quiz?->title ?? RewardService::labelForReason($transaction->reason),
+                'label' => $metadata['label'] ?? RewardService::labelForReason($transaction->reason),
+                'score' => $metadata['score'] ?? $transaction->quizAttempt?->score,
+                'points_earned' => $points,
+                'total_points' => $balanceAtItem,
+                'created_at' => $transaction->created_at?->toIso8601String(),
+            ];
+            $balanceAtItem -= $points;
+
+            return $row;
+        })->values();
 
         return response()->json([
             'data' => $items,
             'meta' => [
-                'current_page' => $page,
-                'last_page' => max(1, (int) ceil($total / $perPage)),
-                'per_page' => $perPage,
-                'total' => $total,
-                'points_balance' => $leaderboard->pointsForUser($request->user()->id),
-                'scoring' => 'Points equal each quiz’s best passed score; only improvements to a quiz best add points.',
+                'current_page' => $transactions->currentPage(),
+                'last_page' => max(1, $transactions->lastPage()),
+                'per_page' => $transactions->perPage(),
+                'total' => $transactions->total(),
+                'points_balance' => $balance,
+                'scoring' => 'Account points include rewards and penalties recorded in the point history.',
             ],
         ]);
     }
@@ -1288,7 +1299,7 @@ class MobileController extends Controller
                 'period' => $period,
                 'scoring' => $type === 'reading'
                     ? 'distinct books marked completed during the period; ties use book-goal completion rate, then achieved book-goal count'
-                    : 'sum of each reader’s best passing score per published quiz',
+                    : 'points from recorded quiz and daily account rewards, minus unfinished-quiz penalties',
             ], $readingRankings ? [
                 'current_page' => $readingRankings->currentPage(),
                 'last_page' => $readingRankings->lastPage(),
@@ -1302,7 +1313,8 @@ class MobileController extends Controller
     {
         $user = $request->user();
         abort_unless($user->isReader(), 403);
-        $verifiedBooks = $duelService->verifiedBooks($user);
+        $eligibleBooks = $duelService->duelBooks();
+        $duelAccess = $duelService->duelAccess($user);
         $duels = Duel::query()
             ->where(fn ($query) => $query->where('challenger_id', $user->id)->orWhere('opponent_id', $user->id))
             ->with(['book:id,title,slug', 'challenger:id,name,username,profile_photo_path,last_seen_at', 'opponent:id,name,username,profile_photo_path,last_seen_at', 'attempts:id,duel_id,quiz_id,user_id,score,submitted_at', 'attempts.quiz:id,title'])
@@ -1310,26 +1322,32 @@ class MobileController extends Controller
             ->get()
             ->map(fn (Duel $duel) => $this->duelData($duel, $user));
 
-        $books = $verifiedBooks->map(fn (Book $book) => [
+        $books = $eligibleBooks->map(fn (Book $book) => [
             'id' => $book->id,
             'title' => $book->title,
             'slug' => $book->slug,
-            'opponents' => $duelService->verifiedOpponents($user, $book)->map(fn (User $opponent) => [
-                'id' => $opponent->id,
-                'name' => $opponent->name,
-                'username' => $opponent->username,
-                'profile_photo_url' => $this->storageUrl($opponent->profile_photo_path),
-                'is_online' => $opponent->last_seen_at?->greaterThanOrEqualTo(now()->subMinutes(2)) ?? false,
-                'last_seen_at' => $opponent->last_seen_at?->toIso8601String(),
-            ])->values(),
         ])->values();
 
         return response()->json([
             'data' => $duels,
             'verified_books' => $books,
+            'eligible_books' => $books,
+            'online_readers' => $duelService->onlineOpponents($user)->map(fn (User $opponent) => [
+                'id' => $opponent->id,
+                'name' => $opponent->name,
+                'username' => $opponent->username,
+                'profile_photo_url' => $this->storageUrl($opponent->profile_photo_path),
+                'is_online' => true,
+            ])->values(),
             'meta' => [
-                'unlocked' => $verifiedBooks->isNotEmpty(),
-                'verified_books_count' => $verifiedBooks->count(),
+                'unlocked' => $duelAccess['unlimited_duels_unlocked'],
+                'unlimited_duels_unlocked' => $duelAccess['unlimited_duels_unlocked'],
+                'can_start_duel' => $duelAccess['can_start_duel'],
+                'starter_duel_limit' => $duelAccess['starter_duel_limit'],
+                'starter_duels_used' => $duelAccess['starter_duels_used'],
+                'starter_duels_remaining' => $duelAccess['starter_duels_remaining'],
+                'duel_unlock_reason' => $duelAccess['unlock_reason'],
+                'verified_books_count' => $duelService->verifiedBooks($user)->count(),
             ],
         ]);
     }
@@ -1477,6 +1495,23 @@ class MobileController extends Controller
         return response()->json(['data' => $this->quizData($quiz, $request->user())]);
     }
 
+    public function abandonQuiz(Request $request, Quiz $quiz, RewardService $rewards)
+    {
+        abort_unless($request->user()->isReader(), 403);
+        abort_unless($quiz->status === 'published' && $quiz->book?->status === 'published', 404);
+
+        $payload = $request->validate(['session_id' => ['required', 'uuid']]);
+        $pointsLost = $rewards->penalizeQuizAbandonment($request->user(), $quiz, $payload['session_id']);
+
+        return response()->json([
+            'message' => 'The unfinished quiz was recorded.',
+            'data' => [
+                'points_lost' => $pointsLost,
+                'points_balance' => app(LeaderboardService::class)->pointsForUser($request->user()->id),
+            ],
+        ]);
+    }
+
     public function submitQuiz(Request $request, Quiz $quiz, ReaderNotificationService $notifications)
     {
         $quiz->load(['book', 'questions.answers']);
@@ -1531,6 +1566,14 @@ class MobileController extends Controller
                     ...$evaluation['responses'][(int) $question->id],
                 ]);
             }
+            $rewards = app(RewardService::class);
+            $rewardPoints = $rewards->awardQuizCompletion($attempt);
+            if ($reviewStatus === 'graded' && $passed) {
+                $rewardPoints += $rewards->awardQuizScoreImprovement(
+                    $attempt,
+                    max(0, $percentScore - $previousBest),
+                );
+            }
             $quizGoalProgress = $this->refreshQuizGoalsForUser(
                 (int) $request->user()->id,
                 Carbon::now(),
@@ -1542,12 +1585,14 @@ class MobileController extends Controller
                 'review_status' => $reviewStatus,
                 'attempt_id' => $attempt->id,
                 'attempts_used' => $attemptsCount + 1,
-                'reward_points' => $passed ? max(0, $percentScore - $previousBest) : 0,
+                'reward_points' => $rewardPoints,
+                'points_earned' => $rewardPoints,
                 'quiz_goal_progress' => $quizGoalProgress,
             ];
         });
 
         $result['reward_balance'] = app(LeaderboardService::class)->pointsForUser($request->user()->id);
+        $result['points_balance'] = $result['reward_balance'];
         $result['reward_label'] = 'Quiz leaderboard points';
 
         if ($result['review_status'] === 'graded') {
@@ -1623,6 +1668,7 @@ class MobileController extends Controller
             'phone_number' => $user->phone_number,
             'role' => $user->role,
             'locale' => $user->locale ?: 'en',
+            'points' => app(LeaderboardService::class)->pointsForUser($user->id),
             'profile_photo_url' => $this->storageUrl($user->profile_photo_path),
         ];
     }
@@ -1956,6 +2002,7 @@ class MobileController extends Controller
                 'submitted_at' => $latestAttempt->created_at,
             ] : null,
             'duration_minutes' => (int) $quiz->duration_minutes,
+            'abandon_penalty_points' => max(0, (int) config('gamification.quiz_abandon_penalty_points', 10)),
             'performance' => [
                 'readers_count' => (int) ($quiz->readers_count ?? 0),
                 'attempts_count' => (int) ($quiz->attempts_count ?? 0),

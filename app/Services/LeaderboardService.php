@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\User;
-use Illuminate\Support\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class LeaderboardService
@@ -13,30 +13,14 @@ class LeaderboardService
 
     public function pointsForUser(int $userId): int
     {
-        return (int) DB::table('quiz_attempts as attempts')
-            ->join('quizzes', 'quizzes.id', '=', 'attempts.quiz_id')
-            ->join('books', 'books.id', '=', 'quizzes.book_id')
-            ->where('attempts.user_id', $userId)
-            ->where('attempts.passed', true)
-            ->where('quizzes.status', 'published')
-            ->where('books.status', 'published')
-            ->select('attempts.quiz_id')
-            ->selectRaw('MAX(attempts.score) as best_score')
-            ->groupBy('attempts.quiz_id')
-            ->get()
-            ->sum('best_score');
+        return (int) DB::table('point_transactions')
+            ->where('user_id', $userId)
+            ->sum('points');
     }
 
     public function rankings(string $period = 'weekly', int $limit = 20): Collection
     {
         abort_unless(in_array($period, self::PERIODS, true), 422, 'Invalid leaderboard period.');
-
-        $query = DB::table('quiz_attempts as attempts')
-            ->join('quizzes', 'quizzes.id', '=', 'attempts.quiz_id')
-            ->join('books', 'books.id', '=', 'quizzes.book_id')
-            ->where('attempts.passed', true)
-            ->where('quizzes.status', 'published')
-            ->where('books.status', 'published');
 
         $since = match ($period) {
             'daily' => now()->startOfDay(),
@@ -45,29 +29,38 @@ class LeaderboardService
             default => null,
         };
 
-        if ($since) {
-            $query->where('attempts.created_at', '>=', $since);
-        }
-
-        $bestScores = $query
-            ->select('attempts.user_id', 'attempts.quiz_id')
-            ->selectRaw('MAX(attempts.score) as best_score')
-            ->groupBy('attempts.user_id', 'attempts.quiz_id')
+        $pointTotals = DB::table('point_transactions as points')
+            ->join('users', 'users.id', '=', 'points.user_id')
+            ->where('users.role', 'reader')
+            ->when($since, fn ($query) => $query->where('points.created_at', '>=', $since))
+            ->select('points.user_id')
+            ->selectRaw('SUM(points.points) as total_points')
+            ->groupBy('points.user_id')
             ->get()
-            ->groupBy('user_id');
+            ->keyBy('user_id');
 
-        if ($bestScores->isEmpty()) {
+        if ($pointTotals->isEmpty()) {
             return collect();
         }
 
-        $users = User::query()
-            ->whereIn('id', $bestScores->keys())
-            ->where('role', 'reader')
-            ->get(['id', 'name'])
-            ->keyBy('id');
+        $verifiedQuizzes = DB::table('quiz_attempts as attempts')
+            ->join('quizzes', 'quizzes.id', '=', 'attempts.quiz_id')
+            ->join('books', 'books.id', '=', 'quizzes.book_id')
+            ->where('attempts.passed', true)
+            ->where('attempts.review_status', 'graded')
+            ->where('quizzes.status', 'published')
+            ->where('books.status', 'published')
+            ->when($since, fn ($query) => $query->where('attempts.created_at', '>=', $since))
+            ->select('attempts.user_id')
+            ->selectRaw('COUNT(DISTINCT attempts.quiz_id) as verified_quizzes')
+            ->groupBy('attempts.user_id')
+            ->get()
+            ->keyBy('user_id');
 
-        return $bestScores
-            ->map(function (Collection $quizzes, string $userId) use ($users) {
+        $users = User::query()->whereIn('id', $pointTotals->keys())->get(['id', 'name'])->keyBy('id');
+
+        return $pointTotals
+            ->map(function (object $points, string $userId) use ($users, $verifiedQuizzes) {
                 $user = $users->get($userId);
                 if (! $user) {
                     return null;
@@ -76,8 +69,8 @@ class LeaderboardService
                 return [
                     'user_id' => (int) $user->id,
                     'name' => $user->name,
-                    'points' => (int) $quizzes->sum('best_score'),
-                    'verified_quizzes' => $quizzes->count(),
+                    'points' => (int) $points->total_points,
+                    'verified_quizzes' => (int) ($verifiedQuizzes->get($userId)?->verified_quizzes ?? 0),
                 ];
             })
             ->filter()
@@ -137,16 +130,16 @@ class LeaderboardService
             ->paginate(max(1, min($perPage, 50)));
 
         $rankings->setCollection($rankings->getCollection()->values()->map(fn (object $reader, int $index): array => [
-                'rank' => $rankings->firstItem() + $index,
-                'user_id' => (int) $reader->user_id,
-                'name' => $reader->name,
-                'completed_books' => (int) $reader->completed_books,
-                'book_goals_count' => (int) $reader->book_goals_count,
-                'book_goals_achieved' => (int) $reader->book_goals_achieved,
-                'books_goal_progress' => (int) $reader->books_goal_progress,
-                'books_goal_target' => (int) $reader->books_goal_target,
-                'goal_completion_rate' => (float) $reader->goal_completion_rate,
-            ]));
+            'rank' => $rankings->firstItem() + $index,
+            'user_id' => (int) $reader->user_id,
+            'name' => $reader->name,
+            'completed_books' => (int) $reader->completed_books,
+            'book_goals_count' => (int) $reader->book_goals_count,
+            'book_goals_achieved' => (int) $reader->book_goals_achieved,
+            'books_goal_progress' => (int) $reader->books_goal_progress,
+            'books_goal_target' => (int) $reader->books_goal_target,
+            'goal_completion_rate' => (float) $reader->goal_completion_rate,
+        ]));
 
         return $rankings;
     }
