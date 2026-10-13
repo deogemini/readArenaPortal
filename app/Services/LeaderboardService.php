@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class LeaderboardService
 {
@@ -57,7 +59,10 @@ class LeaderboardService
             ->get()
             ->keyBy('user_id');
 
-        $users = User::query()->whereIn('id', $pointTotals->keys())->get(['id', 'name'])->keyBy('id');
+        $users = User::query()
+            ->whereIn('id', $pointTotals->keys())
+            ->get(['id', 'name', 'profile_photo_path'])
+            ->keyBy('id');
 
         return $pointTotals
             ->map(function (object $points, string $userId) use ($users, $verifiedQuizzes) {
@@ -69,6 +74,7 @@ class LeaderboardService
                 return [
                     'user_id' => (int) $user->id,
                     'name' => $user->name,
+                    'profile_photo_url' => $this->profilePhotoUrl($user->profile_photo_path),
                     'points' => (int) $points->total_points,
                     'verified_quizzes' => (int) ($verifiedQuizzes->get($userId)?->verified_quizzes ?? 0),
                 ];
@@ -115,7 +121,7 @@ class LeaderboardService
             ->where('users.role', 'reader')
             ->leftJoinSub($completedBooks, 'reading_totals', 'reading_totals.user_id', '=', 'users.id')
             ->leftJoinSub($bookGoals, 'goal_totals', 'goal_totals.user_id', '=', 'users.id')
-            ->select('users.id as user_id', 'users.name')
+            ->select('users.id as user_id', 'users.name', 'users.profile_photo_path')
             ->selectRaw('COALESCE(reading_totals.completed_books, 0) as completed_books')
             ->selectRaw('COALESCE(goal_totals.book_goals_count, 0) as book_goals_count')
             ->selectRaw('COALESCE(goal_totals.book_goals_achieved, 0) as book_goals_achieved')
@@ -133,6 +139,7 @@ class LeaderboardService
             'rank' => $rankings->firstItem() + $index,
             'user_id' => (int) $reader->user_id,
             'name' => $reader->name,
+            'profile_photo_url' => $this->profilePhotoUrl($reader->profile_photo_path),
             'completed_books' => (int) $reader->completed_books,
             'book_goals_count' => (int) $reader->book_goals_count,
             'book_goals_achieved' => (int) $reader->book_goals_achieved,
@@ -142,5 +149,18 @@ class LeaderboardService
         ]));
 
         return $rankings;
+    }
+
+    private function profilePhotoUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }
