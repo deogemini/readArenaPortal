@@ -119,6 +119,9 @@
                                 <td class="px-4 py-3">{{ $book->featured ? 'Yes' : 'No' }}</td>
                                 <td class="px-4 py-3">
                                     <div class="mb-2">{{ $book->pdf_path ? 'PDF uploaded' : 'PDF missing' }}</div>
+                                    @if($book->pdf_path)
+                                        <a href="{{ route('admin.books.pdf.show', $book) }}" target="_blank" rel="noopener noreferrer" class="mb-2 inline-flex rounded-full border border-[#D8A83E] px-3 py-1 text-xs font-semibold text-[#F4EBD8]">View PDF</a>
+                                    @endif
                                     <form action="{{ route('admin.books.pdf.store', $book) }}" method="POST" enctype="multipart/form-data" data-chunk-url="{{ route('admin.books.pdf.chunks', $book) }}" data-max-bytes="{{ (int) config('uploads.book_pdf_max_kb', 102400) * 1024 }}" class="min-w-44 space-y-2" data-pdf-chunk-upload>
                                         @csrf
                                         <input type="file" name="pdf_file" accept="application/pdf" required class="block w-52 max-w-full rounded-lg border border-[#3d261b] bg-[#2B170D] px-2 py-1 text-xs">

@@ -60,10 +60,11 @@
             </div>
         @endif
 
-        <section class="grid gap-4 px-6 py-8 lg:grid-cols-6 lg:px-8">
+        <section class="grid gap-4 px-6 py-8 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 lg:px-8">
             @foreach([
                 ['label'=>'Readers','value'=>$readers],
                 ['label'=>'Published books','value'=>$books],
+                ['label'=>'Uploaded PDFs','value'=>$uploadedBookPdfCount],
                 ['label'=>'Quizzes','value'=>$quizzes],
                 ['label'=>'Live shows','value'=>$shows],
                 ['label'=>'Pending reviews','value'=>$pendingReviews],
@@ -98,6 +99,33 @@
                         </div>
                     @empty
                         <p class="rounded-[18px] border border-[#3d261b] bg-[#1B0D05] p-4 text-sm text-[#d8c9ad]">Platform activity will appear here as readers use the site.</p>
+                    @endforelse
+                </div>
+            </div>
+        </section>
+
+        <section class="px-6 pb-8 lg:px-8">
+            <div class="rounded-[28px] border border-[#3d261b] bg-[#2B170D] p-6">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#D8A83E]">Library files</p>
+                        <h2 class="mt-2 font-serif text-2xl">Uploaded book PDFs <span class="text-lg text-[#d8c9ad]">({{ $uploadedBookPdfCount }})</span></h2>
+                        <p class="mt-1 text-sm text-[#b8ab95]">Latest uploads from your library</p>
+                    </div>
+                    <a href="{{ route('admin.books') }}" class="rounded-full border border-[#d8c9ad] px-4 py-2 text-sm">Manage books</a>
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    @forelse($uploadedBookPdfs as $book)
+                        <article class="flex items-center justify-between gap-3 rounded-[18px] border border-[#3d261b] bg-[#1B0D05] p-4">
+                            <div class="min-w-0">
+                                <h3 class="truncate font-semibold" title="{{ $book->title }}">{{ $book->title }}</h3>
+                                <p class="mt-1 text-xs text-[#b8ab95]">{{ ucfirst($book->status ?? 'draft') }} · Updated {{ $book->updated_at?->diffForHumans() }}</p>
+                            </div>
+                            <a href="{{ route('admin.books.pdf.show', $book) }}" target="_blank" rel="noopener noreferrer" class="shrink-0 rounded-full border border-[#D8A83E] px-3 py-2 text-xs font-semibold text-[#F4EBD8]">View PDF</a>
+                        </article>
+                    @empty
+                        <p class="rounded-[18px] border border-dashed border-[#3d261b] p-4 text-sm text-[#d8c9ad] md:col-span-2 xl:col-span-3">No book PDFs uploaded yet. Upload a PDF from the Books page to see it here.</p>
                     @endforelse
                 </div>
             </div>

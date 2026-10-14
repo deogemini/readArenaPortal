@@ -91,6 +91,7 @@ Route::middleware(['auth', 'verified', 'admin', 'track.user.activity'])->prefix(
     Route::get('/users/activity', [AdminController::class, 'userActivitySnapshot'])->name('admin.users.activity');
     Route::get('/books', [AdminController::class, 'books'])->name('admin.books');
     Route::post('/books', [AdminController::class, 'storeBook'])->name('admin.books.store');
+    Route::get('/books/{book}/pdf', [AdminController::class, 'showBookPdf'])->name('admin.books.pdf.show');
     Route::post('/books/{book}/pdf', [AdminController::class, 'uploadBookPdf'])->name('admin.books.pdf.store');
     Route::post('/books/{book}/pdf/chunks', [AdminController::class, 'uploadBookPdfChunk'])->name('admin.books.pdf.chunks');
     Route::patch('/books/{book}', [AdminController::class, 'updateBook'])->name('admin.books.update');

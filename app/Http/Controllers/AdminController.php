@@ -89,6 +89,9 @@ class AdminController extends Controller
         return view('admin.dashboard', [
             'readers' => User::where('role', 'reader')->count(),
             'books' => Book::where('status', 'published')->count(),
+            'uploadedBookPdfCount' => Book::query()->whereNotNull('pdf_path')->count(),
+            'uploadedBookPdfs' => Book::query()->whereNotNull('pdf_path')->latest('updated_at')->limit(6)
+                ->get(['id', 'title', 'slug', 'status', 'updated_at']),
             'quizzes' => Quiz::count(),
             'shows' => LiveShow::count(),
             'lessons' => Lesson::count(),
@@ -174,6 +177,26 @@ class AdminController extends Controller
                 ->withCount('quizzes as total_quizzes_count')
                 ->latest()->paginate(10),
         ]);
+    }
+
+    public function showBookPdf(Book $book)
+    {
+        abort_unless($book->pdf_path, 404);
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($book->pdf_path)) {
+            $disk = Storage::disk('public');
+        }
+
+        abort_unless($disk->exists($book->pdf_path), 404);
+
+        $filename = Str::slug($book->title).'.pdf';
+
+        return $disk->response($book->pdf_path, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
+        ], 'inline');
     }
 
     public function storeBook(Request $request): RedirectResponse
