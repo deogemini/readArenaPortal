@@ -7,9 +7,9 @@
     <title>Lessons | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
+<div class="flex flex-1 flex-col bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     @include('reader.partials.navigation')
     <main class="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
         @if (session('status'))<div class="rounded-xl border border-[#d8c9ad] bg-[#FBF6EA] p-4 text-sm lg:col-span-2">{{ session('status') }}</div>@endif
@@ -69,5 +69,6 @@
         </section>
     </main>
 </div>
+<x-site-footer />
 </body>
 </html>

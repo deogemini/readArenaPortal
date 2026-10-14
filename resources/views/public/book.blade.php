@@ -7,9 +7,9 @@
     <title>{{ $book->title }} | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen">
+<div class="flex-1">
     <x-public-navigation />
     <main class="mx-auto grid max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
         <div class="rounded-[28px] border border-[#d8c9ad] bg-[#FBF6EA] p-6 shadow-sm">
@@ -121,5 +121,6 @@
         </div>
     </section>
 </div>
+<x-site-footer />
 </body>
 </html>

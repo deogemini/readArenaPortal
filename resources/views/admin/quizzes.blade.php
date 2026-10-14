@@ -327,6 +327,7 @@
                 }
             })();
         </script>
+        <x-site-footer theme="dark" />
     </main>
 </div>
 </body>

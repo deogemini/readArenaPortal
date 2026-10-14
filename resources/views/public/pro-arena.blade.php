@@ -7,9 +7,9 @@
     <title>Pro Arena Packages | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen">
+<div class="flex-1">
     <x-public-navigation />
 
     <main class="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -32,5 +32,6 @@
         </section>
     </main>
 </div>
+<x-site-footer />
 </body>
 </html>

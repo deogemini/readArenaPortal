@@ -8,9 +8,9 @@
     <title>Privacy Policy | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D] antialiased">
+<body class="bg-[#F4EBD8] text-[#24150D] antialiased min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.16),_transparent_38%)]">
+<div class="flex flex-1 flex-col bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.16),_transparent_38%)]">
     <x-public-navigation />
 
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
@@ -153,11 +153,8 @@
             </article>
         </div>
 
-        <footer class="mt-8 flex flex-col gap-3 border-t border-[#d8c9ad] py-6 text-sm text-[#786A5D] sm:flex-row sm:items-center sm:justify-between">
-            <a href="{{ route('home') }}" class="font-serif text-lg font-semibold text-[#1B0D05]">ReadArena</a>
-            <p>Privacy questions: <a href="mailto:info@eportsolutions.co.tz" class="font-semibold text-[#6c4b11] underline underline-offset-4">info@eportsolutions.co.tz</a></p>
-        </footer>
     </main>
+    <x-site-footer />
 </div>
 </body>
 </html>

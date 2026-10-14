@@ -7,9 +7,9 @@
     <title>Author Dashboard | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen">
+<div class="flex flex-1 flex-col">
     <header class="border-b border-[#d8c9ad] bg-[#FBF6EA]/90">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
             <div>
@@ -156,5 +156,6 @@
         updateFields();
     });
 </script>
+<x-site-footer />
 </body>
 </html>

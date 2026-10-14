@@ -7,9 +7,9 @@
     <title>About ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen">
+<div class="flex-1">
     <x-public-navigation />
 
     <main class="mx-auto max-w-5xl px-6 py-16 lg:px-8 lg:py-24">
@@ -44,5 +44,6 @@
         </div>
     </main>
 </div>
+<x-site-footer />
 </body>
 </html>

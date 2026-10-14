@@ -191,6 +191,7 @@
                 </div>
             </div>
         </section>
+        <x-site-footer theme="dark" />
     </main>
 </div>
 </body>

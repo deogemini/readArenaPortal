@@ -8,10 +8,10 @@
     <title>Sign In | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_35%)]">
-    <div class="mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
+<div class="flex flex-1 flex-col bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_35%)]">
+    <div class="mx-auto grid w-full flex-1 max-w-7xl items-center gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
         <section class="rounded-[32px] border border-[#d8c9ad] bg-[#1B0D05] p-8 text-[#F4EBD8] shadow-xl lg:p-12">
             <a href="/" class="inline-flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
                 <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
@@ -105,5 +105,6 @@
         </section>
     </div>
 </div>
+<x-site-footer />
 </body>
 </html>

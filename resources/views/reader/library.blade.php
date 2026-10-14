@@ -7,9 +7,9 @@
     <title>Reader Library | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
+<div class="flex flex-1 flex-col bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.18),_transparent_40%)]">
     @include('reader.partials.navigation')
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -41,5 +41,6 @@
         </div>
     </main>
 </div>
+<x-site-footer />
 </body>
 </html>

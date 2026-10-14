@@ -7,9 +7,9 @@
     <title>{{ $book->title }} | Reader Book</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D] antialiased">
+<body class="bg-[#F4EBD8] text-[#24150D] antialiased min-h-screen flex flex-col">
 @include('components.language-switcher')
-<div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.16),_transparent_38%)]">
+<div class="flex flex-1 flex-col bg-[radial-gradient(circle_at_top_left,_rgba(216,168,62,0.16),_transparent_38%)]">
     @include('reader.partials.navigation')
 
     @php
@@ -387,5 +387,6 @@
         </section>
     </main>
 </div>
+<x-site-footer />
 </body>
 </html>

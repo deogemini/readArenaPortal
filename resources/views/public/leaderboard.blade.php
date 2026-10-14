@@ -7,10 +7,10 @@
     <title>Reader Leaderboard | ReadArena</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-[#F4EBD8] text-[#24150D]">
+<body class="bg-[#F4EBD8] text-[#24150D] min-h-screen flex flex-col">
 @include('components.language-switcher')
 <x-public-navigation />
-<main class="mx-auto min-h-screen max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+<main class="mx-auto flex-1 max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
     <header class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="font-serif text-4xl text-[#1B0D05]">Reader leaderboard</h1>
         <a href="{{ route('library') }}" class="rounded-full bg-[#1B0D05] px-5 py-2 text-sm font-semibold text-[#FBF6EA]">Explore library</a>
@@ -67,5 +67,6 @@
         @endif
     </section>
 </main>
+<x-site-footer />
 </body>
 </html>

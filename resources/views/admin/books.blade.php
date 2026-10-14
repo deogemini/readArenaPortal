@@ -167,6 +167,7 @@
             <div class="mt-4">{{ $books->links() }}</div>
             </div>
         </section>
+        <x-site-footer theme="dark" />
     </main>
 </div>
 <script>

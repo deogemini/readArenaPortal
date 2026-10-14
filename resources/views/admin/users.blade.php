@@ -154,6 +154,7 @@
                 <div class="mt-4">{{ $users->links() }}</div>
             </div>
         </section>
+        <x-site-footer theme="dark" />
     </main>
 </div>
 <script>
