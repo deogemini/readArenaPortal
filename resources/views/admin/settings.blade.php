@@ -10,22 +10,7 @@
 <body class="bg-[#1B0D05] text-[#F4EBD8]">
 @include('components.language-switcher')
 <div class="min-h-screen">
-    <aside class="fixed inset-y-0 left-0 hidden w-72 border-r border-[#3d261b] bg-[#130804] p-6 lg:block">
-        <div class="flex items-center gap-3 text-xl font-semibold uppercase tracking-[0.2em]">
-            <x-brand-mark class="h-10 w-10 rounded-xl ring-1 ring-[#d8c9ad]" />
-            <span>ReadArena Admin</span>
-        </div>
-        <nav class="mt-8 space-y-2 text-sm text-[#d8c9ad]">
-            <a href="/admin" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Dashboard</a>
-            <a href="/admin/users" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Users</a>
-            <a href="/admin/books" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Books</a>
-            <a href="/admin/quizzes" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Quizzes</a>
-            <a href="/admin/duels" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Duels</a>
-            <a href="/admin/shows" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Shows</a>
-            <a href="/admin/packages" class="block rounded-[14px] px-4 py-3 hover:bg-[#2B170D]">Packages</a>
-            <a href="/admin/settings" class="block rounded-[14px] bg-[#2B170D] px-4 py-3">Settings</a>
-        </nav>
-    </aside>
+    <x-admin-sidebar />
 
     <main class="lg:ml-72">
         <header class="border-b border-[#3d261b] bg-[#1B0D05] px-6 py-6 lg:px-8">
