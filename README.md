@@ -74,12 +74,14 @@ Send JSON request bodies with `Content-Type: application/json`. Validation error
 | --- | --- | --- |
 | POST | `/auth/register` | Create a reader account and receive a token |
 | POST | `/auth/login` | Sign in with email and password |
-| POST | `/auth/google` | Sign in with a Google access token |
+| POST | `/auth/google` | Sign in with a Google ID token or access token |
 | POST | `/auth/forgot-password` | Request an email password reset link |
 | POST | `/auth/reset-password` | Reset a password with the emailed token |
 | POST | `/auth/logout` | Revoke the current device token |
 
 Register accepts `name`, `email`, `password`, `password_confirmation`, optional `role` (`reader` or `author`), and optional `device_name`. Login accepts `email`, `password`, and optional `device_name`. Auth responses contain `user`, `token`, and `token_type` (`Bearer`).
+
+For Google sign-in, Android should send its Google `id_token` in the `id_token` field. The API also accepts the older `access_token` field, including ID tokens sent under that legacy field name. Set `GOOGLE_CLIENT_ID` to the web/server OAuth client ID and add any additional Android OAuth client IDs to `GOOGLE_ANDROID_CLIENT_IDS` as a comma-separated list; the API checks the token audience against those configured IDs.
 
 ### Reader API
 

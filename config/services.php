@@ -37,6 +37,13 @@ return [
 
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_ids' => array_values(array_unique(array_filter(array_map(
+            'trim',
+            array_merge(
+                [env('GOOGLE_CLIENT_ID', '')],
+                explode(',', (string) env('GOOGLE_ANDROID_CLIENT_IDS', ''))
+            )
+        )))),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],

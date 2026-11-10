@@ -105,7 +105,7 @@
     "/api/auth/google": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Authenticate a mobile user with Google",
+        "summary": "Authenticate a mobile user with a Google ID token or access token",
         "requestBody": {
           "required": true,
           "content": {
@@ -954,9 +954,13 @@
       },
       "GoogleLoginRequest": {
         "type": "object",
-        "required": ["access_token"],
+        "anyOf": [
+          { "required": ["id_token"] },
+          { "required": ["access_token"] }
+        ],
         "properties": {
-          "access_token": { "type": "string", "example": "google-access-token" },
+          "id_token": { "type": "string", "description": "Google ID token issued to GOOGLE_CLIENT_ID or one of GOOGLE_ANDROID_CLIENT_IDS." },
+          "access_token": { "type": "string", "description": "Legacy Google OAuth access token. A Google ID token sent under this field is also accepted." },
           "role": { "type": "string", "enum": ["reader", "author"], "example": "reader" },
           "device_name": { "type": "string", "example": "Pixel 8" },
           "locale": { "type": "string", "enum": ["en", "sw"] }

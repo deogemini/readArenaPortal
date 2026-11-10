@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
@@ -74,14 +75,36 @@ class AuthController extends Controller
     public function google(Request $request)
     {
         $validated = $request->validate([
-            'access_token' => ['required', 'string'],
+            'id_token' => ['nullable', 'required_without:access_token', 'string', 'max:8192'],
+            'access_token' => ['nullable', 'required_without:id_token', 'string', 'max:8192'],
             'role' => ['nullable', 'string', 'in:reader,author'],
             'device_name' => ['nullable', 'string', 'max:80'],
             'locale' => ['nullable', 'string', Rule::in(['en', 'sw'])],
         ]);
 
+        $googleToken = $validated['id_token'] ?? $validated['access_token'];
+        $isIdToken = isset($validated['id_token']) || $this->isJwt($googleToken);
+
         try {
-            $googleUser = Socialite::driver('google')->userFromToken($validated['access_token']);
+            if ($isIdToken) {
+                $audience = $this->googleIdTokenAudience($googleToken);
+                $allowedClientIds = config('services.google.client_ids', []);
+
+                if (! $audience || ! in_array($audience, $allowedClientIds, true)) {
+                    return response()->json(['message' => 'Unable to authenticate with Google'], 401);
+                }
+
+                // Google ID tokens are issued to a particular OAuth client. Build the
+                // verifier for that configured audience so Android and web clients can
+                // both sign in while Socialite still verifies the token signature.
+                $googleProvider = Socialite::buildProvider(
+                    GoogleProvider::class,
+                    array_merge(config('services.google'), ['client_id' => $audience])
+                );
+                $googleUser = $googleProvider->userFromToken($googleToken);
+            } else {
+                $googleUser = Socialite::driver('google')->userFromToken($googleToken);
+            }
         } catch (\Throwable) {
             return response()->json(['message' => 'Unable to authenticate with Google'], 401);
         }
@@ -115,6 +138,27 @@ class AuthController extends Controller
         }
 
         return $this->tokenResponse($user, 'Login successful', $validated['device_name'] ?? 'android-app');
+    }
+
+    private function isJwt(string $token): bool
+    {
+        return strlen($token) > 100 && substr_count($token, '.') === 2;
+    }
+
+    private function googleIdTokenAudience(string $token): ?string
+    {
+        if (! $this->isJwt($token)) {
+            return null;
+        }
+
+        $parts = explode('.', $token);
+        $payloadPart = strtr($parts[1], '-_', '+/');
+        $payloadPart .= str_repeat('=', (4 - strlen($payloadPart) % 4) % 4);
+        $payload = json_decode(base64_decode($payloadPart, true) ?: '', true);
+
+        return is_array($payload) && is_string($payload['aud'] ?? null)
+            ? $payload['aud']
+            : null;
     }
 
     public function forgotPassword(Request $request)
